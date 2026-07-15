@@ -1,0 +1,12 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "isCreatingSolution": true,
+    "environment": "spo",
+    "version": "1.21.1",
+    "libraryName": "sharepoint-smart-path-length",
+    "libraryId": "d85009df-d11e-4f51-abbb-c8a239c7de83",
+    "packageManager": "npm",
+    "isDomainIsolated": false,
+    "componentType": "webpart"
+  }
+}

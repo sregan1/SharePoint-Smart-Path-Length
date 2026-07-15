@@ -1,0 +1,16 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/core-build/config.2.0.0-beta.17.json",
+  "version": "2.0",
+  "bundles": {
+    "sharepoint-smart-file-path-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/sharePointSmartFilePath/SharePointSmartFilePathWebPart.js",
+          "manifest": "./src/webparts/sharePointSmartFilePath/SharePointSmartFilePathWebPart.manifest.json"
+        }
+      ]
+    }
+  },
+  "externals": {},
+  "localizedResources": {}
+}

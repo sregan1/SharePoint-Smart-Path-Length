@@ -1,0 +1,32 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "SharePoint Smart Path Length",
+    "id": "d85009df-d11e-4f51-abbb-c8a239c7de83",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "developer": {
+      "name": "Sean Regan",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "websiteUrl": "https://sharepointsmartsolutions.com/sharepoint-smart-path-length",
+      "mpnId": ""
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "SharePoint Smart Path Length — finds paths too long for OneDrive shortcuts"
+      },
+      "longDescription": {
+        "default": "SharePoint Smart Path Length — finds paths too long for OneDrive shortcuts"
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    }
+  },
+  "paths": {
+    "zippedPackage": "solution/sharepoint-smart-path-length.sppkg"
+  }
+}
