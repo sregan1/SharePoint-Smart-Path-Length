@@ -80,6 +80,9 @@ When you open the Explorer, it automatically expands the library you had open la
 4. While a library's background check is still running, its folders show a spinner alongside their status icon — the icon itself (an item's own length) is always accurate right away; it's only the dot (anything below it) that isn't final until the spinner goes away. The background check pauses automatically while a page editor is editing the page, and results are kept in your browser for about an hour so repeated visits in the same session don't repeat the check unnecessarily. Hover a library's icon to see whether its current check came from that cache or a live scan, and how long ago.
 5. Click **Refresh** in the toolbar at any time to force a live re-check of every library, ignoring cached results — useful if you know content has changed recently and want current answers immediately.
 6. Click **Activity log** in the toolbar to see a timestamped record of what the background scanner has actually been doing — scans starting and finishing, cache hits, libraries being interrupted so a newly-viewed one can jump ahead, and any folders that failed to load. Handy if a status looks like it's taking a while to appear and you want to know why.
+
+   ![Activity log dialog](docs/screenshots/activity-log.png)
+
 7. Edit the **Sample OneDrive path prefix** field at the top to match a real user's OneDrive folder (e.g. `C:\Users\Jordan\OneDrive - Contoso\`) and every length in the tree recalculates immediately.
 8. Once you've selected an item, a **Library sync folder name** field appears — this is the tool's best guess at what OneDrive will actually call the synced library locally (normally `{Site Name} - {Library Name}`). If you know the real synced folder name differs, type it in and the whole library's estimates update.
 

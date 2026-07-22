@@ -113,18 +113,45 @@ const WARNING_COUNT = 64;
 
 // ── Shared fragments ─────────────────────────────────────────────────────────────
 function statusMeta(status) {
-  if (status === 'error') return { color: COLOR.danger, glyph: '✕', label: 'Over limit' };
-  if (status === 'warn') return { color: COLOR.warning, glyph: '!', label: 'Warning' };
-  return { color: COLOR.success, glyph: '✓', label: 'OK' };
+  if (status === 'error') return { color: COLOR.danger, label: 'Over limit' };
+  if (status === 'warn') return { color: COLOR.warning, label: 'Warning' };
+  return { color: COLOR.success, label: 'OK' };
 }
+// Three deliberately distinct silhouettes — not just three colors of the same
+// circle — matching the real app: a green circle (OK), an amber triangle
+// (Warning), and a solid red rounded-square with the glyph inverted to white
+// (Over limit). The real "over limit" icon is intentionally shaped
+// differently from "OK" so the two don't read as similar at a glance.
 function statusIcon(status, size) {
-  const { color, glyph } = statusMeta(status);
   const s = size || 15;
-  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${s}px;height:${s}px;border-radius:50%;background:${color};color:#fff;font-size:${Math.round(s * 0.6)}px;font-weight:700;line-height:1;flex-shrink:0;">${glyph}</span>`;
+  if (status === 'error') {
+    const badge = s + 4;
+    return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${badge}px;height:${badge}px;border-radius:4px;background:${COLOR.danger};flex-shrink:0;">
+      <svg width="${Math.round(s * 0.62)}" height="${Math.round(s * 0.62)}" viewBox="0 0 20 20"><path fill="#fff" d="M10 1.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17Zm3.36 5.14a.9.9 0 0 1 0 1.27L11.27 10l2.09 2.09a.9.9 0 1 1-1.27 1.27L10 11.27l-2.09 2.09a.9.9 0 1 1-1.27-1.27L8.73 10 6.64 7.91a.9.9 0 0 1 1.27-1.27L10 8.73l2.09-2.09a.9.9 0 0 1 1.27 0Z"/></svg>
+    </span>`;
+  }
+  if (status === 'warn') {
+    return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${s + 2}px;height:${s + 2}px;flex-shrink:0;">
+      <svg width="${s + 2}" height="${s + 2}" viewBox="0 0 20 20"><path fill="${COLOR.warning}" d="M8.68 2.85c.57-1 2.02-1 2.6 0l7.28 12.7c.58 1-.15 2.25-1.3 2.25H2.7c-1.15 0-1.88-1.25-1.3-2.25L8.68 2.85Z"/><rect x="9.15" y="7" width="1.7" height="5.3" rx="0.85" fill="#fff"/><rect x="9.15" y="13.3" width="1.7" height="1.7" rx="0.85" fill="#fff"/></svg>
+    </span>`;
+  }
+  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${s}px;height:${s}px;border-radius:50%;background:${COLOR.success};color:#fff;font-size:${Math.round(s * 0.6)}px;font-weight:700;line-height:1;flex-shrink:0;">✓</span>`;
 }
 function statusBadge(status) {
   const { color, label } = statusMeta(status);
   return `<span style="display:inline-flex;align-items:center;padding:2px 10px;border-radius:11px;background:${color};color:#fff;font-size:12px;font-weight:600;">${label}</span>`;
+}
+function spinnerIcon(size) {
+  const s = size || 14;
+  return `<span style="display:inline-flex;width:${s}px;height:${s}px;border-radius:50%;border:2px solid ${COLOR.border2};border-top-color:${COLOR.primary};flex-shrink:0;"></span>`;
+}
+function refreshIcon(size) {
+  const s = size || 14;
+  return `<svg width="${s}" height="${s}" viewBox="0 0 20 20" style="flex-shrink:0"><path fill="currentColor" d="M10 4a6 6 0 1 0 5.65 4h-1.6A4.5 4.5 0 1 1 10 5.5V8l3.5-3L10 2v2Z"/></svg>`;
+}
+function listIcon(size) {
+  const s = size || 14;
+  return `<svg width="${s}" height="${s}" viewBox="0 0 20 20" style="flex-shrink:0"><rect x="2" y="3.5" width="4" height="3" rx="0.6" fill="currentColor"/><rect x="8" y="4.2" width="10" height="1.6" rx="0.8" fill="currentColor"/><rect x="2" y="8.5" width="4" height="3" rx="0.6" fill="currentColor"/><rect x="8" y="9.2" width="10" height="1.6" rx="0.8" fill="currentColor"/><rect x="2" y="13.5" width="4" height="3" rx="0.6" fill="currentColor"/><rect x="8" y="14.2" width="10" height="1.6" rx="0.8" fill="currentColor"/></svg>`;
 }
 function folderIcon(size) {
   const s = size || 16;
@@ -165,7 +192,11 @@ function banner(activeView) {
 function treeRowsHtml(nodes, depth) {
   return nodes.map((n) => {
     const canExpand = !!n.hasChildren;
-    const dot = !n.expanded && n.belowIssue
+    // Shows regardless of expanded/collapsed state — the icon reflects only
+    // this node's own path length, so the dot is the only signal for "one of
+    // my descendants is flagged," and hiding it once expanded would lose
+    // that signal for anything deeper than the immediate children shown.
+    const dot = n.belowIssue
       ? `<span title="Contains an item ${n.belowIssue === 'error' ? 'over the limit' : 'at warning level'} below" style="width:6px;height:6px;border-radius:50%;background:${n.belowIssue === 'error' ? COLOR.danger : COLOR.warning};margin-left:2px;flex-shrink:0;"></span>`
       : '';
     const rowBg = n.selected ? COLOR.selectedBg : 'transparent';
@@ -217,6 +248,17 @@ function explorerPage() {
         <svg width="15" height="15" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="none" stroke="${COLOR.textSecondary}" stroke-width="1.4"/><rect x="9.2" y="5.5" width="1.6" height="6" rx="0.8" fill="${COLOR.textSecondary}"/><rect x="9.2" y="13" width="1.6" height="1.6" rx="0.8" fill="${COLOR.textSecondary}"/></svg>
         Warning at 225+ characters, over limit at 260+ (set in the web part's edit properties)
       </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-left:auto;">
+        <button style="${btnStyle('secondary')}display:inline-flex;align-items:center;gap:6px;">${refreshIcon(14)}Refresh</button>
+        <button style="${btnStyle('secondary')}display:inline-flex;align-items:center;gap:6px;">${listIcon(14)}Activity log</button>
+      </div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:20px;padding:0 16px 10px;color:${COLOR.textSecondary};font-size:12px;border-bottom:1px solid ${COLOR.border};">
+      <span style="display:flex;align-items:center;gap:6px;">${statusIcon('ok', 15)}<span>OK</span></span>
+      <span style="display:flex;align-items:center;gap:6px;">${statusIcon('warn', 15)}<span>Warning</span></span>
+      <span style="display:flex;align-items:center;gap:6px;">${statusIcon('error', 15)}<span>Over limit</span></span>
+      <span style="display:flex;align-items:center;gap:6px;">${spinnerIcon(14)}<span>Scanning</span></span>
+      <span style="display:flex;align-items:center;gap:6px;"><span style="width:6px;height:6px;border-radius:50%;background:${COLOR.warning};"></span><span>Issue below</span></span>
     </div>
     <div class="cols">
       <div class="tree">${treeRowsHtml(TREE, 0)}</div>
@@ -390,6 +432,45 @@ function settingsPage() {
   </body></html>`;
 }
 
+// ── Page: Activity log ───────────────────────────────────────────────────────────
+// Newest entry first, matching the real panel's column-reverse layout.
+const ACTIVITY_LOG = [
+  { time: '2:14:26 PM', message: '"Policies": scan complete in 1720ms — 96 item(s), 0 unlistable, 0 failed.' },
+  { time: '2:14:24 PM', message: '"Policies": starting background live scan (concurrency 1).' },
+  { time: '2:14:24 PM', message: '"Documents": scan complete in 1890ms — 288 item(s), 0 unlistable, 0 failed.' },
+  { time: '2:14:22 PM', message: '"Documents": starting PRIORITY live scan (concurrency 8).' },
+  { time: '2:14:22 PM', message: '"Policies": scan interrupted after 340ms (preempted by a new priority library) — requeued, not cached.' },
+  { time: '2:14:22 PM', message: 'Priority switched to "Documents" — interrupting "Policies"’s in-progress scan.' },
+  { time: '2:14:22 PM', message: 'User expanded "Documents" — now the scan priority.' },
+  { time: '2:14:06 PM', message: '"Policies": starting background live scan (concurrency 1).' },
+  { time: '2:14:06 PM', message: '"Submissions": scan complete in 2140ms — 412 item(s), 1 unlistable, 0 failed.' },
+  { time: '2:14:04 PM', message: '"Submissions": starting PRIORITY live scan (concurrency 8).' },
+  { time: '2:14:04 PM', message: '"Documents": applied from cache (checked 12 min ago).' },
+  { time: '2:14:04 PM', message: 'Background scan pass: 1 library from cache, 2 to scan live.' },
+  { time: '2:14:04 PM', message: 'Auto-expanding "Submissions" (last opened) — set as scan priority.' },
+  { time: '2:14:04 PM', message: 'Loaded 3 libraries for "Regulatory Affairs".' },
+  { time: '2:14:03 PM', message: `Loading site "${SITE_URL}"...` },
+];
+
+function activityLogPage() {
+  const rows = ACTIVITY_LOG.map((e) => `<div style="overflow-wrap:anywhere;padding:2px 0;"><span style="color:${COLOR.textSecondary};">[${e.time}]</span> ${e.message}</div>`).join('');
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: ${FONT}; background: rgba(0,0,0,.35); }
+  </style></head><body>
+  <div style="width:900px;margin:40px auto;background:${COLOR.surface};border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,.25);padding:24px;">
+    <div style="font-size:17px;font-weight:600;color:${COLOR.textPrimary};margin-bottom:16px;">Activity log</div>
+    <div style="max-height:420px;overflow-y:auto;font-family:${MONO};font-size:12.5px;background:#F3F2F1;padding:14px;border-radius:6px;line-height:1.7;color:${COLOR.textPrimary};">
+      ${rows}
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
+      <button style="${btnStyle('secondary')}">Clear</button>
+      <button style="${btnStyle('primary')}">Close</button>
+    </div>
+  </div>
+  </body></html>`;
+}
+
 // ── Screenshot runner ─────────────────────────────────────────────────────────────
 async function main() {
   const browser = await puppeteer.launch({
@@ -403,6 +484,7 @@ async function main() {
     ['report.png', () => reportPage(false), { width: 1440, height: 860 }],
     ['report-export-dialog.png', () => reportPage(true), { width: 1440, height: 860 }],
     ['settings.png', () => settingsPage(), { width: 760, height: 560 }],
+    ['activity-log.png', () => activityLogPage(), { width: 1000, height: 600 }],
   ];
 
   for (const [filename, htmlFn, vp] of shots) {
