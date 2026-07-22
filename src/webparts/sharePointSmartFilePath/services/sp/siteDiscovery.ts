@@ -20,7 +20,7 @@ export async function getLibraries(
   const url =
     `${siteUrl}/_api/web/lists` +
     `?$filter=${encodeURIComponent(filter)}` +
-    `&$select=Title,RootFolder/ServerRelativeUrl,NoCrawl,IsSiteAssetsLibrary` +
+    `&$select=Id,Title,RootFolder/ServerRelativeUrl,RootFolder/UniqueId,NoCrawl,IsSiteAssetsLibrary` +
     `&$expand=RootFolder&$orderby=Title&$top=500`;
   const libs = await client.getJsonPaged(url, signal);
   return libs
@@ -28,6 +28,8 @@ export async function getLibraries(
     .map((l: any) => ({
       title: l.Title,
       serverRelativeUrl: l.RootFolder?.ServerRelativeUrl ?? '',
+      uniqueId: l.RootFolder?.UniqueId,
+      id: l.Id,
       noCrawl: !!l.NoCrawl || undefined,
     }));
 }

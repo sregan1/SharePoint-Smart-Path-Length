@@ -79,6 +79,7 @@ export interface AppProps {
   errorLength: number;
   defaultSamplePath: string;
   brandColors: IBrandColors;
+  isEditMode: boolean;
 }
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
@@ -130,7 +131,7 @@ try {
 }
 
 export const App: React.FC<AppProps> = ({
-  context, sp, exportService, warningLength, errorLength, defaultSamplePath, brandColors,
+  context, sp, exportService, warningLength, errorLength, defaultSamplePath, brandColors, isEditMode,
 }) => {
   const theme = React.useMemo(() => buildTheme(brandColors), [brandColors]);
 
@@ -155,9 +156,14 @@ export const App: React.FC<AppProps> = ({
       setSamplePath(defaultSamplePath);
     }
   }, [defaultSamplePath]);
-  const [scanConcurrency, setScanConcurrency] = React.useState(
-    () => parseInt(localStorage.getItem(LS_CONCURRENCY) ?? '4', 10),
-  );
+  const [scanConcurrency, setScanConcurrency] = React.useState(() => {
+    // A corrupted/non-numeric stored value would otherwise become NaN here,
+    // which flows all the way into `new TaskQueue(NaN)` — that queue's pump
+    // loop condition (active < concurrency) is never true for NaN, so it
+    // hangs forever with no error, silently freezing every future scan.
+    const parsed = parseInt(localStorage.getItem(LS_CONCURRENCY) ?? '4', 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 4;
+  });
   const [includeHidden, setIncludeHidden] = React.useState(
     () => localStorage.getItem(LS_INCLUDE_HIDDEN) === 'true',
   );
@@ -258,6 +264,7 @@ export const App: React.FC<AppProps> = ({
           errorLength={errorLength}
           samplePath={samplePath}
           onSamplePathChange={setSamplePath}
+          isEditMode={isEditMode}
         />
       )}
       {view === 'report' && (

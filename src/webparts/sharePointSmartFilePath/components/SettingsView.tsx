@@ -38,7 +38,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       <div className={styles.field}>
         <div className={styles.labelRow}>
           <Label htmlFor="settingsSamplePath">Sample OneDrive path prefix</Label>
-          <Tooltip content="Your OneDrive sync root, e.g. C:\Users\UserName\OneDrive - Company\. Saved to this browser only — it isn't shared with other users." relationship="description">
+          <Tooltip content="Your OneDrive sync root, e.g. C:\Users\UsernamePath\OneDrive - Company\. Saved to this browser only — it isn't shared with other users." relationship="description">
             <Info16Regular />
           </Tooltip>
         </div>

@@ -1,4 +1,4 @@
-import { Version } from '@microsoft/sp-core-library';
+import { Version, DisplayMode } from '@microsoft/sp-core-library';
 import type { IPropertyPaneConfiguration } from '@microsoft/sp-property-pane';
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import { ThemeProvider, IReadonlyTheme } from '@microsoft/sp-component-base';
@@ -77,6 +77,7 @@ export default class SharePointSmartFilePathWebPart extends BaseClientSideWebPar
         errorLength: this.properties.errorLength ?? DEFAULT_ERROR_LENGTH,
         defaultSamplePath: this.properties.defaultSamplePath ?? DEFAULT_SAMPLE_PATH,
         brandColors: this._brandColors,
+        isEditMode: this.displayMode === DisplayMode.Edit,
       });
       ReactDom.render(element, this.domElement);
     } catch (err: any) {
@@ -99,6 +100,13 @@ export default class SharePointSmartFilePathWebPart extends BaseClientSideWebPar
 
   protected onDispose(): void {
     ReactDom.unmountComponentAtNode(this.domElement);
+  }
+
+  // Re-renders with the new isEditMode prop so the Explorer's background
+  // scanning can react to entering/leaving edit mode without waiting for
+  // some unrelated re-render to happen to pick it up.
+  protected onDisplayModeChanged(oldDisplayMode: DisplayMode): void {
+    this.render();
   }
 
   protected get dataVersion(): Version {

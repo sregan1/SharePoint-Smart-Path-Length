@@ -113,12 +113,20 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
       try {
         // eslint-disable-next-line no-await-in-loop
-        const items = await sp.fullScanLibrary(siteUrl, lib.serverRelativeUrl, (n) => {
+        const items = await sp.fullScanLibrary(siteUrl, { serverRelativeUrl: lib.serverRelativeUrl, uniqueId: lib.uniqueId }, (n) => {
           setScanned(totalScanned + n);
-        }, controller.signal);
+        }, controller.signal, undefined, lib.id);
         totalScanned += items.length;
         for (const item of items) {
           const path = buildOneDrivePath(samplePath, syncFolder, item.relativeSegments);
+          let status = getPathStatus(path.length, warningLength, errorLength);
+          // A folder SharePoint couldn't enumerate — because its path (or
+          // something inside it) was too long, or for any other reason
+          // (permissions, a network blip) — must not silently report as a
+          // clean "OK" here; that would produce a false-clean report for
+          // exactly the kind of folder this tool exists to catch.
+          if (item.tooLongToEnumerate) status = 'error';
+          else if (item.enumerationFailed && status === 'normal') status = 'warning';
           all.push({
             isFolder: item.isFolder,
             name: item.name,
@@ -126,7 +134,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
             libraryTitle: lib.title,
             oneDrivePath: path,
             oneDrivePathLength: path.length,
-            status: getPathStatus(path.length, warningLength, errorLength),
+            status,
           });
         }
       } catch (err: any) {

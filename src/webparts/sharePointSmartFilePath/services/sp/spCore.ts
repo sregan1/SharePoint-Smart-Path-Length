@@ -18,6 +18,16 @@ export function fileApi(siteUrl: string, serverRelativeUrl: string): string {
   return `${siteUrl}/_api/web/GetFileByServerRelativePath(decodedUrl='${encodeURIComponent(odata(serverRelativeUrl))}')`;
 }
 
+// Addresses a folder by its SharePoint GUID instead of its server-relative
+// path. The URL is a fixed length regardless of how deep/long the folder's
+// actual path is, which sidesteps the HTTP 406/414 GetFolderByServerRelativePath
+// throws once a path gets too long to embed in a REST URL. Undocumented for
+// REST (only CSOM has an official reference), but well-established and in
+// active community use with no indication of deprecation.
+export function folderApiById(siteUrl: string, uniqueId: string): string {
+  return `${siteUrl}/_api/web/GetFolderById('${uniqueId.replace(/[{}]/g, '')}')`;
+}
+
 // Single shared work queue with a global concurrency cap. Unlike nested
 // runConcurrent pools (which multiply: N workers each spawning N more per
 // recursion level), tasks here can enqueue follow-up tasks — e.g. recursive
@@ -26,8 +36,16 @@ export class TaskQueue {
   private active = 0;
   private pending: (() => Promise<void>)[] = [];
   private idleResolvers: (() => void)[] = [];
+  private readonly concurrency: number;
 
-  constructor(private readonly concurrency: number) {}
+  constructor(concurrency: number) {
+    // pump()'s loop condition is `active < concurrency` — for a NaN (or
+    // <= 0) concurrency that's never true, so the queue would silently
+    // accept tasks forever without ever running one, and drain() would
+    // never resolve. Callers already try to guard against this upstream,
+    // but this is the one place that can make it impossible regardless.
+    this.concurrency = Number.isFinite(concurrency) && concurrency > 0 ? concurrency : 1;
+  }
 
   add(task: () => Promise<void>): void {
     this.pending.push(task);
@@ -53,6 +71,26 @@ export class TaskQueue {
   drain(): Promise<void> {
     if (this.active === 0 && this.pending.length === 0) return Promise.resolve();
     return new Promise((resolve) => this.idleResolvers.push(resolve));
+  }
+}
+
+// SharePoint's REST endpoints address a folder/file by embedding its own
+// server-relative path in the request URL (see folderApi/fileApi above). Once
+// that path gets long enough — which for the "over the limit" folders this
+// tool exists to find is exactly when it matters most — SharePoint Online
+// rejects the request outright (typically HTTP 406, sometimes 414) rather
+// than returning a normal listing. Callers can treat this as authoritative
+// proof the path is over the limit, instead of just a failed request.
+export class PathTooLongError extends Error {
+  constructor(message: string) {
+    super(message);
+    // This project compiles to ES5 (see tsconfig's target), and TypeScript's
+    // ES5 class emit does not correctly wire up the prototype chain for a
+    // class extending a built-in like Error — without this line, the error
+    // is still thrown and its .message is fine, but `instanceof
+    // PathTooLongError` at every catch site silently evaluates to false.
+    Object.setPrototypeOf(this, PathTooLongError.prototype);
+    this.name = 'PathTooLongError';
   }
 }
 
@@ -118,6 +156,17 @@ export class SpApiClient {
       const retryAfter = parseInt(resp.headers.get('Retry-After') ?? '10', 10);
       await new Promise((r) => setTimeout(r, (isNaN(retryAfter) ? 10 : retryAfter) * 1000));
       return this.getJson(url, attempt + 1, signal);
+    }
+    if (resp.status === 406 || resp.status === 414) {
+      // Surface SharePoint's actual response body — the theory that this is
+      // always a path-length issue is our best guess, not a documented
+      // guarantee, and the real message (when present) is the fastest way to
+      // confirm or rule that out if this fires for an unrelated reason.
+      let detail = '';
+      try { detail = (await resp.text()).substring(0, 300); } catch { /* best-effort */ }
+      throw new PathTooLongError(
+        `SharePoint rejected this request (HTTP ${resp.status}) — usually because the folder's own path (or an item inside it) is too long to address via the REST API.${detail ? ` Detail: ${detail}` : ''}`,
+      );
     }
     if (!resp.ok) {
       const txt = await resp.text();

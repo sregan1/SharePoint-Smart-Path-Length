@@ -5,6 +5,10 @@ export type ExportScope = 'all' | 'warningAndOver' | 'overOnly';
 export interface LibraryInfo {
   title: string;
   serverRelativeUrl: string;
+  /** RootFolder's SharePoint GUID — lets folder listings address it by ID instead of by path. */
+  uniqueId?: string;
+  /** The list's own GUID — lets a folder that can't be listed any other way be enumerated via its list items instead (see getFolderContentsViaListItems). */
+  id?: string;
   noCrawl?: boolean;
 }
 
@@ -22,6 +26,8 @@ export interface PathNode {
   relativeSegments: string[];
   /** serverRelativeUrl of the library root this node belongs to — used to look up its sync-folder name. */
   libraryRootUrl: string;
+  /** SharePoint GUID for this folder, when known — lets its children be listed by ID instead of by path. */
+  uniqueId?: string;
   oneDrivePathLength: number;
   status: PathStatus;
   /** True when a descendant (not yet expanded) is at warning/error length — propagated up on load, like the Permissions Explorer's hasUniquePermissionsBelow. */

@@ -2,7 +2,9 @@ import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { LibraryInfo } from '../models/models';
 import { SpApiClient } from './sp/spCore';
 import { getSiteTitle, getLibraries } from './sp/siteDiscovery';
-import { getFolderContents, fullScanLibrary, RawItem, ScannedItem } from './sp/pathExplorer';
+import {
+  getFolderContents, fullScanLibrary, FolderRef, RawItem, ScannedItem,
+} from './sp/pathExplorer';
 
 export class SharePointService {
   private readonly client: SpApiClient;
@@ -26,16 +28,18 @@ export class SharePointService {
     return getLibraries(this.client, siteUrl, includeHidden, signal);
   }
 
-  getFolderContents(siteUrl: string, folderUrl: string, signal?: AbortSignal): Promise<RawItem[]> {
-    return getFolderContents(this.client, siteUrl, folderUrl, signal);
+  getFolderContents(siteUrl: string, folder: FolderRef, signal?: AbortSignal, libraryId?: string): Promise<RawItem[]> {
+    return getFolderContents(this.client, siteUrl, folder, signal, libraryId);
   }
 
   fullScanLibrary(
     siteUrl: string,
-    libraryRootUrl: string,
+    libraryRoot: FolderRef,
     onProgress?: (scanned: number) => void,
     signal?: AbortSignal,
+    concurrencyOverride?: number,
+    libraryId?: string,
   ): Promise<ScannedItem[]> {
-    return fullScanLibrary(this.client, siteUrl, libraryRootUrl, onProgress, signal);
+    return fullScanLibrary(this.client, siteUrl, libraryRoot, onProgress, signal, concurrencyOverride, libraryId);
   }
 }
