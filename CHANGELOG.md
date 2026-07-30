@@ -4,6 +4,60 @@ All notable changes to this project are documented here.
 
 ---
 
+## [1.2.0] — 2026-07-30
+
+### Changed
+
+- **Adaptive throttling back-off**
+  Scans now treat SharePoint throttling as the tenant-wide condition it is
+  rather than a per-request hiccup — fixing scans that caused severe, sustained
+  throttling on large tenants. A single HTTP 429/503 now pauses *every*
+  in-flight and queued request through one shared gate, honoring `Retry-After`
+  where SharePoint sends it and using capped exponential back-off with jitter
+  where it doesn't. Previously each request retried alone while its siblings
+  kept hammering, which is what turned brief throttling into sustained
+  throttling.
+- **Scan concurrency is now an upper limit, not a fixed rate**
+  A scan opens well below the configured value and ramps up (doubling) only
+  while requests stay clean, so a first scan against an already-saturated
+  tenant no longer charges straight in at full speed. The first throttling
+  response records the concurrency that caused it: the scan halves immediately,
+  switches to one-step-at-a-time growth, and thereafter recovers only to just
+  *below* that level — approaching the tenant's limit from underneath instead of
+  rediscovering it by breaching it again. Changes apply to scans already in
+  flight rather than only to the next one, and the Explorer's speculative
+  prefetching is held to the same ceiling.
+- **Throttling avoided where the tenant reports its budget**
+  Where SharePoint sends the `RateLimit-*` decoration headers, a draining
+  request budget now triggers a brief slow-down *before* the first refusal
+  arrives, marking the safe ceiling without ever crossing it.
+- **Throttling is now visible instead of silent**
+  The Report view's scan status shows the remaining wait or the reduced
+  concurrency, and the Explorer's Activity log records every back-off, reduction
+  and recovery step with the reason. A throttled scan previously just looked
+  slow, or like a hung web part.
+- **Separate retry budgets for throttling and network errors**
+  Throttling gets substantially more attempts than a socket failure, since
+  waiting it out is the correct response rather than a sign anything is broken.
+  A request that stays throttled past its budget now reports that specifically,
+  instead of being indistinguishable from a folder that couldn't be read.
+- **Documentation**
+  New "When SharePoint Slows the Tool Down" section in the user guide and
+  "Adaptive throttling back-off" section in the README; the Settings tooltip now
+  explains the upper-limit behavior, and the Settings and Activity log
+  screenshots were regenerated to match.
+
+### Fixed
+
+- **Releases are published automatically again**
+  The release workflow only ran once a GitHub Release had already been created
+  by hand, so pushing a version tag produced nothing — which is why v1.1.0 has
+  no entry under Releases and no downloadable package. It now triggers on the
+  `vX.Y.Z` tag push itself, builds the `.sppkg`, and creates the release with
+  this changelog's matching section as the release notes.
+
+---
+
 ## [1.1.0] — 2026-07-22
 
 ### Added

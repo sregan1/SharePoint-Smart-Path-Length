@@ -1,22 +1,29 @@
-name: Attach sppkg to release
+name: Release
 
+# Fires on the tag push itself, so `git push origin vX.Y.Z` is the whole release
+# process. The previous `release: [published]` trigger required someone to
+# create the GitHub Release by hand first and only then attached the .sppkg to
+# it — which is how v1.1.0 ended up tagged nowhere and released nowhere.
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*.*.*'
 
 permissions:
   contents: write
 
 jobs:
-  build-and-attach:
+  build-and-release:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v4
         with:
+          # Matches package.json "engines".node (>=18.17.1 <19.0.0) — SPFx is
+          # picky about the Node major, so this stays pinned rather than 'lts'.
           node-version: '18.17.1'
           cache: 'npm'
 
@@ -24,9 +31,47 @@ jobs:
         run: npm ci
 
       - name: Build release package
-        run: npm run ship
+        run: |
+          npx gulp clean
+          npm run ship
 
-      - name: Upload sppkg to the release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ github.event.release.tag_name }}" sharepoint/solution/*.sppkg --clobber
+      - name: Locate .sppkg
+        id: sppkg
+        run: |
+          PKG=$(find sharepoint/solution -maxdepth 1 -name '*.sppkg' | head -n1)
+          if [ -z "$PKG" ]; then
+            echo "No .sppkg found under sharepoint/solution" >&2
+            exit 1
+          fi
+          echo "path=$PKG" >> "$GITHUB_OUTPUT"
+
+      # Pulls this version's section out of CHANGELOG.md to use as the release
+      # body. Fails loudly rather than publishing an empty release: a silently
+      # note-less release is the same class of problem as a missing one.
+      - name: Extract release notes from CHANGELOG.md
+        id: notes
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          # Matched with index() rather than a regex so the literal "[" needs no
+          # escaping — backslashes here have to survive YAML, the shell and awk's
+          # own string lexer, and silently degrade into a broken pattern if any
+          # layer eats one.
+          awk -v hdr="## [$VERSION]" '
+            index($0, hdr) == 1      { found = 1; next }
+            found && index($0, "## [") == 1 { exit }
+            found                    { print }
+          ' CHANGELOG.md > release-notes.md
+          # Strip the trailing "---" separator and any blank lines around it.
+          sed -i -e 's/^---$//' release-notes.md
+          if [ ! -s release-notes.md ] || ! grep -q '[^[:space:]]' release-notes.md; then
+            echo "No CHANGELOG.md section found for [$VERSION]" >&2
+            exit 1
+          fi
+          echo "Release notes for $VERSION:"
+          cat release-notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.sppkg.outputs.path }}
+          body_path: release-notes.md

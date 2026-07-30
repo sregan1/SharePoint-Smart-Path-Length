@@ -1,6 +1,6 @@
 # SharePoint Smart Path Length — User Guide
 
-**Version 1.1.0**
+**Version 1.2.0**
 **Applies to:** SharePoint Online
 
 ---
@@ -13,10 +13,11 @@
 4. [Explorer](#explorer)
 5. [Report](#report)
 6. [Settings](#settings)
-7. [Web Part Configuration](#web-part-configuration)
-8. [Understanding the OneDrive Path Estimate](#understanding-the-onedrive-path-estimate)
-9. [Frequently Asked Questions](#frequently-asked-questions)
-10. [Troubleshooting](#troubleshooting)
+7. [When SharePoint Slows the Tool Down](#when-sharepoint-slows-the-tool-down)
+8. [Web Part Configuration](#web-part-configuration)
+9. [Understanding the OneDrive Path Estimate](#understanding-the-onedrive-path-estimate)
+10. [Frequently Asked Questions](#frequently-asked-questions)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -79,7 +80,7 @@ When you open the Explorer, it automatically expands the library you had open la
 3. A small dot next to a folder's icon means a descendant somewhere inside it is at warning level (amber) or over the limit (red) — this shows whether the folder is expanded or collapsed, since expanding one level doesn't reveal problems that are further down than that.
 4. While a library's background check is still running, its folders show a spinner alongside their status icon — the icon itself (an item's own length) is always accurate right away; it's only the dot (anything below it) that isn't final until the spinner goes away. The background check pauses automatically while a page editor is editing the page, and results are kept in your browser for about an hour so repeated visits in the same session don't repeat the check unnecessarily. Hover a library's icon to see whether its current check came from that cache or a live scan, and how long ago.
 5. Click **Refresh** in the toolbar at any time to force a live re-check of every library, ignoring cached results — useful if you know content has changed recently and want current answers immediately.
-6. Click **Activity log** in the toolbar to see a timestamped record of what the background scanner has actually been doing — scans starting and finishing, cache hits, libraries being interrupted so a newly-viewed one can jump ahead, and any folders that failed to load. Handy if a status looks like it's taking a while to appear and you want to know why.
+6. Click **Activity log** in the toolbar to see a timestamped record of what the background scanner has actually been doing — scans starting and finishing, cache hits, libraries being interrupted so a newly-viewed one can jump ahead, any folders that failed to load, and every time SharePoint asked the tool to slow down (see [When SharePoint Slows the Tool Down](#when-sharepoint-slows-the-tool-down)). Handy if a status looks like it's taking a while to appear and you want to know why.
 
    ![Activity log dialog](docs/screenshots/activity-log.png)
 
@@ -104,7 +105,7 @@ The Report runs a full recursive scan of one or more entire libraries — not ju
 
 1. Click **Report** in the banner (it toggles to **Explorer** once you're on the Report screen, so you can switch back).
 2. Choose which libraries to scan, or use **Select all** / **Select none**.
-3. Click **Run full scan**. A live count shows progress; click **Cancel** at any time to stop (an item already being read completes before the scan actually halts).
+3. Click **Run full scan**. A live count shows progress; click **Cancel** at any time to stop (an item already being read completes before the scan actually halts). If SharePoint starts throttling the scan, the status text says so — including how long it's waiting — and the scan carries on more slowly by itself (see [When SharePoint Slows the Tool Down](#when-sharepoint-slows-the-tool-down)).
 4. Once finished, filter the results table: **All**, **Warning & over**, or **Over limit only**.
 5. Click **Export report…** and choose:
    - **Format** — CSV or Excel (the Excel version color-codes rows by severity).
@@ -121,10 +122,30 @@ Click the **gear icon** in the banner to open Settings. These are saved to your 
 ![Settings panel](docs/screenshots/settings.png)
 
 - **Sample OneDrive path prefix** — the same field available in the Explorer toolbar, in case you'd rather set it once here.
-- **Concurrent API requests during a full scan** — how many requests the Report view fires in parallel; lower this if a scan is getting throttled.
+- **Concurrent API requests during a full scan (upper limit)** — the *most* requests a scan will ever have in flight at once. It's a ceiling, not a fixed rate: scans start below it and speed up only while SharePoint is comfortably keeping up, then slow themselves down automatically if it isn't (see the next section). You normally don't need to touch this — lower it only if scans are still causing throttling on your tenant.
 - **Include hidden and system libraries** — off by default; turn on to also scan libraries SharePoint normally hides.
 
 The warning and over-limit thresholds are **not** set here — see Web Part Configuration below.
+
+---
+
+## When SharePoint Slows the Tool Down
+
+SharePoint Online limits how many requests an app may make in a short window, shared across everything using your tenant — OneDrive sync, Outlook, Teams, other apps, other people. When that budget runs low it starts refusing requests, a behavior Microsoft calls *throttling*. Scanning a large site is request-heavy, so it can run into this.
+
+The tool manages this for you, and you don't have to do anything when it happens:
+
+- **It starts gently and speeds up.** A scan opens well below your configured limit and only works its way up while SharePoint is keeping up comfortably — so a site that's already busy never gets hit at full speed from the first moment.
+- **If SharePoint pushes back, everything pauses.** Throttling affects the whole tenant, not one request, so *all* scanning stops for as long as SharePoint asks — it tells the tool exactly how long to wait, and the tool waits. Continuing to retry during that window is what turns a brief slowdown into a long one.
+- **It then runs more gently, permanently.** After pausing, the tool halves how much it does at once, remembers the level that caused the problem, and from then on never goes back up to it — it settles just below, rather than repeatedly rediscovering the limit the hard way.
+- **On some tenants it avoids throttling entirely.** Where SharePoint reports how much request budget is left, the tool eases off as that budget runs low, before any request is actually refused.
+
+### How to tell it's happening
+
+- **In the Report view**, the scan status next to the progress spinner says so directly — either that it's waiting (with a countdown) or that it's running at reduced speed after being throttled. The scan is still running; it's just being polite.
+- **In the Explorer**, the **Activity log** records every pause, slow-down and recovery step, with the reason and the wait SharePoint asked for.
+
+A scan that reports throttling hasn't failed or lost data — it just takes longer. If it happens on every scan of your tenant, lower the concurrency upper limit in Settings and the tool will stay further away from the limit from the start.
 
 ---
 
@@ -174,7 +195,10 @@ The tool estimates what OneDrive *would* create locally — check that your samp
 Yes, deliberately — the sample path prefix is per-browser, so each person can check against their own OneDrive folder name. The warning and over-limit thresholds, however, are the same for everyone (set by the page editor).
 
 **Does a full scan affect SharePoint performance?**
-It makes a request per folder, similar to browsing that many folders manually. Lower the concurrency in Settings if you notice throttling on a very large library.
+It makes a request per folder, similar to browsing that many folders manually. It also watches for SharePoint pushing back and slows itself down when that happens, so a scan of a very large library shouldn't degrade SharePoint for anyone else — see [When SharePoint Slows the Tool Down](#when-sharepoint-slows-the-tool-down).
+
+**A scan said it was "throttled by SharePoint" — did it fail?**
+No. Throttling means SharePoint asked the tool to slow down, and it did. The scan keeps going and its results are still complete; it just takes longer. Nothing is skipped or silently missed.
 
 **Does just opening the Explorer make extra requests to SharePoint too?**
 Yes — the Explorer automatically checks each library in the background so status icons are accurate before you've expanded everything, similar in spirit to the Report's full scan. The library you're actually looking at is checked at full speed; every other library is checked much more slowly so it doesn't compete with what you're doing, and switching which library you're viewing redirects that effort immediately. This background check also pauses automatically while a page editor is editing the page, and caches its results in your browser for about an hour so repeated visits don't repeat it unnecessarily.
@@ -193,7 +217,7 @@ Click **Activity log** in the toolbar for a timestamped record of every scan sta
 
 **A path's length looks off by a few characters** — the library sync folder name is a best guess; override it in the Explorer toolbar with the real value for your tenant (see [Understanding the OneDrive Path Estimate](#understanding-the-onedrive-path-estimate)).
 
-**A full scan is slow or shows a throttling-related error** — open Settings and lower "Concurrent API requests during a full scan," then try again.
+**A full scan is slow, or the status says it's throttled** — this is the tool deliberately backing off because SharePoint asked it to; the scan is still running and will finish. No action is needed. If it happens on every scan, lower "Concurrent API requests during a full scan (upper limit)" in Settings so scans stay further from your tenant's limit from the outset. See [When SharePoint Slows the Tool Down](#when-sharepoint-slows-the-tool-down).
 
 **Clicking Cancel doesn't stop the scan immediately** — one request already in flight per library finishes before the scan actually stops; this is expected.
 

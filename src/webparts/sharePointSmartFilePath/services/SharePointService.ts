@@ -1,6 +1,7 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { LibraryInfo } from '../models/models';
 import { SpApiClient } from './sp/spCore';
+import { ThrottleSnapshot, ThrottleListener } from './sp/throttle';
 import { getSiteTitle, getLibraries } from './sp/siteDiscovery';
 import {
   getFolderContents, fullScanLibrary, FolderRef, RawItem, ScannedItem,
@@ -18,6 +19,25 @@ export class SharePointService {
   }
   public set scanConcurrency(value: number) {
     this.client.scanConcurrency = value;
+  }
+
+  /**
+   * Live view of the shared throttling state — how hard SharePoint is currently
+   * pushing back, and the concurrency ceiling every scan is being held to
+   * because of it.
+   */
+  public throttleSnapshot(): ThrottleSnapshot {
+    return this.client.throttle.snapshot();
+  }
+
+  /** Subscribe to throttle/recovery notices. Returns an unsubscribe function. */
+  public onThrottleChange(listener: ThrottleListener): () => void {
+    return this.client.onThrottleChange(listener);
+  }
+
+  /** Concurrency a caller will actually get for `requested`, after clamping. */
+  public effectiveConcurrency(requested: number): number {
+    return this.client.effectiveConcurrency(requested);
   }
 
   getSiteTitle(siteUrl: string, signal?: AbortSignal): Promise<string> {

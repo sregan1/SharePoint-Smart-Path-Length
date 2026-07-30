@@ -193,7 +193,12 @@ export async function fullScanLibrary(
 ): Promise<ScannedItem[]> {
   const results: ScannedItem[] = [];
   const resultByUrl = new Map<string, ScannedItem>();
-  const queue = new TaskQueue(Math.max(1, concurrencyOverride ?? client.scanConcurrency));
+  // A function, not a fixed number: the shared throttle controller lowers the
+  // ceiling the instant SharePoint pushes back (and raises it again after a
+  // sustained clean run), and a long walk of a big library needs to follow that
+  // mid-flight rather than keeping whatever concurrency it started with.
+  const requested = Math.max(1, concurrencyOverride ?? client.scanConcurrency);
+  const queue = new TaskQueue(() => client.effectiveConcurrency(requested));
   let scanned = 0;
 
   const walk = (folder: FolderRef, segments: string[]): void => {

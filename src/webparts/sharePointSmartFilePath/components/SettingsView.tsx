@@ -47,8 +47,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       <div className={styles.field}>
         <div className={styles.labelRow}>
-          <Label>Concurrent API requests during a full scan</Label>
-          <Tooltip content="Higher values scan faster but put more load on SharePoint. Lower this if you see throttling errors." relationship="description">
+          <Label>Concurrent API requests during a full scan (upper limit)</Label>
+          <Tooltip content="An upper limit, not a fixed rate. Scans start well below this and ramp up while SharePoint is keeping up. If SharePoint throttles the scan, it pauses (honoring Retry-After), halves its concurrency, and afterwards creeps back up only to just below the level that was throttled — never back to it. Lower this if scans still cause throttling." relationship="description">
             <Info16Regular />
           </Tooltip>
         </div>

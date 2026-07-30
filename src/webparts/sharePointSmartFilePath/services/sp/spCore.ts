@@ -1,5 +1,6 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
+import { ThrottleController, ThrottleListener, sleep } from './throttle';
 
 // Escape single-quotes in OData string literals (SQL-style doubling).
 export function odata(s: string): string {
@@ -36,15 +37,26 @@ export class TaskQueue {
   private active = 0;
   private pending: (() => Promise<void>)[] = [];
   private idleResolvers: (() => void)[] = [];
-  private readonly concurrency: number;
+  private readonly concurrencyFn: () => number;
 
-  constructor(concurrency: number) {
+  /**
+   * `concurrency` may be a function, re-read on every scheduling decision, so a
+   * queue that's already running can be squeezed down (or let back up) live by
+   * the shared ThrottleController — a fixed value captured at construction
+   * would mean an in-flight scan keeps its original concurrency for its entire
+   * run no matter how hard the tenant is throttling us.
+   */
+  constructor(concurrency: number | (() => number)) {
+    const read = typeof concurrency === 'function' ? concurrency : () => concurrency;
     // pump()'s loop condition is `active < concurrency` — for a NaN (or
     // <= 0) concurrency that's never true, so the queue would silently
     // accept tasks forever without ever running one, and drain() would
     // never resolve. Callers already try to guard against this upstream,
     // but this is the one place that can make it impossible regardless.
-    this.concurrency = Number.isFinite(concurrency) && concurrency > 0 ? concurrency : 1;
+    this.concurrencyFn = () => {
+      const value = read();
+      return Number.isFinite(value) && value > 0 ? value : 1;
+    };
   }
 
   add(task: () => Promise<void>): void {
@@ -53,7 +65,7 @@ export class TaskQueue {
   }
 
   private pump(): void {
-    while (this.active < this.concurrency && this.pending.length > 0) {
+    while (this.active < this.concurrencyFn() && this.pending.length > 0) {
       const task = this.pending.shift()!;
       this.active++;
       const onDone = (): void => {
@@ -94,6 +106,19 @@ export class PathTooLongError extends Error {
   }
 }
 
+// Thrown when a request kept being throttled (HTTP 429/503) until the retry
+// budget ran out. Distinct from a generic HTTP failure so callers can say
+// "we backed off and still couldn't get this" rather than implying the folder
+// itself is broken — the data is fine, the tenant is just saturated.
+export class ThrottledError extends Error {
+  constructor(message: string) {
+    super(message);
+    // See PathTooLongError above for why this line is required under ES5.
+    Object.setPrototypeOf(this, ThrottledError.prototype);
+    this.name = 'ThrottledError';
+  }
+}
+
 // Normalise top-level value arrays: SPO REST returns a direct array with
 // odata=nometadata; legacy verbose mode wraps it in { results: [] } or { value: [] }.
 export function valueArray(data: any): any[] {
@@ -128,35 +153,99 @@ export function isLibraryTemplate(baseTemplate: number): boolean {
 // Shared API client: SPFx context plus the throttling-aware fetch helpers and
 // user-tunable scan concurrency. All sp/ modules take this as their first argument.
 export class SpApiClient {
+  /**
+   * Throttle retries per request. Deliberately generous — each attempt waits at
+   * the shared gate (up to 2 min per Retry-After), so this is a "ride out a
+   * throttling episode" budget, not a "hammer 8 times" one.
+   */
+  private static readonly MAX_THROTTLE_ATTEMPTS = 8;
+
   public readonly context: WebPartContext;
   /** Max concurrent API requests during scans. Settable from Settings. */
   public scanConcurrency = 4;
+  /**
+   * Shared across every request this client makes, so being throttled on one
+   * request pauses and slows down all the others too (see throttle.ts).
+   */
+  public readonly throttle = new ThrottleController();
 
   constructor(context: WebPartContext) {
     this.context = context;
   }
 
-  // Retries on 429/503 using the Retry-After header, and on thrown/rejected
-  // errors (network blips) using capped exponential backoff with jitter —
-  // both share the same 3-attempt cap.
+  /**
+   * Effective concurrency for a caller that would like `requested` — clamped by
+   * the shared throttle ceiling. Pass this (as a function) to TaskQueue so an
+   * in-flight scan shrinks the moment the tenant starts pushing back.
+   */
+  public effectiveConcurrency(requested: number): number {
+    const wanted = Number.isFinite(requested) && requested > 0 ? requested : 1;
+    // Asking is also how the throttle controller learns what the ramp should
+    // aim for — the ceiling is derived from real caller demand (ultimately the
+    // user's scan-concurrency setting) rather than configured separately.
+    this.throttle.noteDemand(wanted);
+    return Math.max(1, Math.min(wanted, this.throttle.limit));
+  }
+
+  /** Subscribe to throttle/recovery notices (activity log, scan status UI). */
+  public onThrottleChange(listener: ThrottleListener): () => void {
+    return this.throttle.subscribe(listener);
+  }
+
+  /**
+   * Retries throttling (HTTP 429/503) and network blips on *separate* budgets:
+   * a saturated tenant is a wait-it-out condition, not a broken request, so it
+   * gets far more attempts (and honors Retry-After) than a socket failure does.
+   * Throttle waits happen at the shared gate, which holds back every other
+   * in-flight request too — retrying alone while its siblings keep hammering is
+   * what prolongs throttling instead of clearing it.
+   *
+   * `attempt` seeds the throttle attempt counter; it stays in the signature for
+   * existing call sites (which all pass 0).
+   */
   public async getJson(url: string, attempt = 0, signal?: AbortSignal): Promise<any> {
+    let throttleAttempts = attempt;
+    let networkAttempts = 0;
     let resp: SPHttpClientResponse;
-    try {
-      // ISPHttpClientOptions extends the standard RequestInit, so a signal
-      // here really does abort the underlying fetch — not just skip our own
-      // retry loop — letting a cancelled scan stop an in-flight request.
-      resp = await this.context.spHttpClient.get(url, SPHttpClient.configurations.v1, signal ? { signal } : undefined);
-    } catch (err) {
-      if (signal?.aborted || attempt >= 3) throw err;
-      const backoff = Math.min(1000 * 2 ** attempt, 8000) + Math.random() * 500;
-      await new Promise((r) => setTimeout(r, backoff));
-      return this.getJson(url, attempt + 1, signal);
+
+    for (;;) {
+      // Hold if anything else is currently backing off.
+      await this.throttle.waitForGate(signal);
+      try {
+        // ISPHttpClientOptions extends the standard RequestInit, so a signal
+        // here really does abort the underlying fetch — not just skip our own
+        // retry loop — letting a cancelled scan stop an in-flight request.
+        resp = await this.context.spHttpClient.get(url, SPHttpClient.configurations.v1, signal ? { signal } : undefined);
+      } catch (err) {
+        if (signal?.aborted || networkAttempts >= 3) throw err;
+        const backoff = Math.min(1000 * 2 ** networkAttempts, 8000) + Math.random() * 500;
+        networkAttempts++;
+        await sleep(backoff, signal);
+        continue;
+      }
+
+      if (resp.status === 429 || resp.status === 503) {
+        // Closes the shared gate and reduces concurrency for everyone, whether
+        // or not this particular request has retries left.
+        this.throttle.noteThrottled(resp.status, resp.headers.get('Retry-After'));
+        if (signal?.aborted) throw new Error('Request cancelled while throttled.');
+        if (throttleAttempts >= SpApiClient.MAX_THROTTLE_ATTEMPTS) {
+          throw new ThrottledError(
+            `SharePoint is throttling this tenant (HTTP ${resp.status}) and kept doing so after `
+            + `${SpApiClient.MAX_THROTTLE_ATTEMPTS} backoff attempts. Try again later, or lower the scan `
+            + 'concurrency in Settings.',
+          );
+        }
+        throttleAttempts++;
+        continue;
+      }
+
+      // Non-throttled response: feeds the RateLimit-* decoration headers and
+      // the success streak that lets concurrency recover.
+      this.throttle.noteResponse(resp.headers, resp.ok);
+      break;
     }
-    if ((resp.status === 429 || resp.status === 503) && attempt < 3) {
-      const retryAfter = parseInt(resp.headers.get('Retry-After') ?? '10', 10);
-      await new Promise((r) => setTimeout(r, (isNaN(retryAfter) ? 10 : retryAfter) * 1000));
-      return this.getJson(url, attempt + 1, signal);
-    }
+
     if (resp.status === 406 || resp.status === 414) {
       // Surface SharePoint's actual response body — the theory that this is
       // always a path-length issue is our best guess, not a documented
@@ -196,6 +285,7 @@ export class SpApiClient {
     if (tasks.length === 0) return [];
     const results: (T | undefined)[] = new Array(tasks.length);
     let idx = 0;
+    const effective = this.effectiveConcurrency(concurrency);
     const worker = async (): Promise<void> => {
       while (idx < tasks.length) {
         const i = idx++;
@@ -203,7 +293,7 @@ export class SpApiClient {
         catch { results[i] = undefined; }
       }
     };
-    await Promise.all(Array.from({ length: Math.min(concurrency, tasks.length) }, worker));
+    await Promise.all(Array.from({ length: Math.min(effective, tasks.length) }, worker));
     return results;
   }
 }

@@ -418,7 +418,7 @@ function settingsPage() {
     </div>
     <div class="field">
       <div class="labelrow">
-        <label>Concurrent API requests during a full scan</label>
+        <label>Concurrent API requests during a full scan (upper limit)</label>
         <svg width="14" height="14" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="none" stroke="${COLOR.textSecondary}" stroke-width="1.4"/><rect x="9.2" y="8.5" width="1.6" height="5" rx="0.8" fill="${COLOR.textSecondary}"/><rect x="9.2" y="5.6" width="1.6" height="1.6" rx="0.8" fill="${COLOR.textSecondary}"/></svg>
       </div>
       <div class="spin"><button>&minus;</button><input readonly value="4" /><button>+</button></div>
@@ -435,16 +435,20 @@ function settingsPage() {
 // ── Page: Activity log ───────────────────────────────────────────────────────────
 // Newest entry first, matching the real panel's column-reverse layout.
 const ACTIVITY_LOG = [
-  { time: '2:14:26 PM', message: '"Policies": scan complete in 1720ms — 96 item(s), 0 unlistable, 0 failed.' },
-  { time: '2:14:24 PM', message: '"Policies": starting background live scan (concurrency 1).' },
-  { time: '2:14:24 PM', message: '"Documents": scan complete in 1890ms — 288 item(s), 0 unlistable, 0 failed.' },
-  { time: '2:14:22 PM', message: '"Documents": starting PRIORITY live scan (concurrency 8).' },
+  { time: '2:14:55 PM', message: '"Policies": scan complete in 1720ms — 96 item(s), 0 unlistable, 0 failed.' },
+  { time: '2:14:52 PM', message: 'Recovering after 25 clean requests — concurrency 4 → 5 (will not exceed 7).' },
+  { time: '2:14:41 PM', message: '"Policies": starting background live scan (asking for concurrency 1, currently allowed 4).' },
+  { time: '2:14:40 PM', message: '"Documents": scan complete in 17900ms — 288 item(s), 0 unlistable, 0 failed.' },
+  { time: '2:14:24 PM', message: 'Throttled by SharePoint (HTTP 429) — pausing all requests for 12.3s (Retry-After: 12s), concurrency 8 → 4. Will not go back above 7 (concurrency 8 is now known to throttle).' },
+  { time: '2:14:22 PM', message: '"Documents": starting PRIORITY live scan (asking for concurrency 8, currently allowed 8).' },
   { time: '2:14:22 PM', message: '"Policies": scan interrupted after 340ms (preempted by a new priority library) — requeued, not cached.' },
   { time: '2:14:22 PM', message: 'Priority switched to "Documents" — interrupting "Policies"’s in-progress scan.' },
   { time: '2:14:22 PM', message: 'User expanded "Documents" — now the scan priority.' },
-  { time: '2:14:06 PM', message: '"Policies": starting background live scan (concurrency 1).' },
+  { time: '2:14:06 PM', message: '"Policies": starting background live scan (asking for concurrency 1, currently allowed 8).' },
   { time: '2:14:06 PM', message: '"Submissions": scan complete in 2140ms — 412 item(s), 1 unlistable, 0 failed.' },
-  { time: '2:14:04 PM', message: '"Submissions": starting PRIORITY live scan (concurrency 8).' },
+  { time: '2:14:05 PM', message: 'No throttling seen — ramping concurrency 4 → 8 (target 8).' },
+  { time: '2:14:05 PM', message: 'No throttling seen — ramping concurrency 2 → 4 (target 8).' },
+  { time: '2:14:04 PM', message: '"Submissions": starting PRIORITY live scan (asking for concurrency 8, currently allowed 2).' },
   { time: '2:14:04 PM', message: '"Documents": applied from cache (checked 12 min ago).' },
   { time: '2:14:04 PM', message: 'Background scan pass: 1 library from cache, 2 to scan live.' },
   { time: '2:14:04 PM', message: 'Auto-expanding "Submissions" (last opened) — set as scan priority.' },
@@ -460,7 +464,7 @@ function activityLogPage() {
   </style></head><body>
   <div style="width:900px;margin:40px auto;background:${COLOR.surface};border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,.25);padding:24px;">
     <div style="font-size:17px;font-weight:600;color:${COLOR.textPrimary};margin-bottom:16px;">Activity log</div>
-    <div style="max-height:420px;overflow-y:auto;font-family:${MONO};font-size:12.5px;background:#F3F2F1;padding:14px;border-radius:6px;line-height:1.7;color:${COLOR.textPrimary};">
+    <div style="max-height:560px;overflow-y:auto;font-family:${MONO};font-size:12.5px;background:#F3F2F1;padding:14px;border-radius:6px;line-height:1.7;color:${COLOR.textPrimary};">
       ${rows}
     </div>
     <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
@@ -484,7 +488,7 @@ async function main() {
     ['report.png', () => reportPage(false), { width: 1440, height: 860 }],
     ['report-export-dialog.png', () => reportPage(true), { width: 1440, height: 860 }],
     ['settings.png', () => settingsPage(), { width: 760, height: 560 }],
-    ['activity-log.png', () => activityLogPage(), { width: 1000, height: 600 }],
+    ['activity-log.png', () => activityLogPage(), { width: 1000, height: 760 }],
   ];
 
   for (const [filename, htmlFn, vp] of shots) {

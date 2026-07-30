@@ -322,7 +322,16 @@ export const ExplorerView: React.FC<ExplorerViewProps> = ({
     });
   }, []);
 
-  const prefetchQueueRef = React.useRef(new TaskQueue(3));
+  // Prefetch shares the tenant's request budget with everything else, so its
+  // concurrency is clamped by the same throttle ceiling the scans use — when
+  // SharePoint starts pushing back, speculative work is exactly what should
+  // shrink first.
+  const prefetchQueueRef = React.useRef(new TaskQueue(() => sp.effectiveConcurrency(3)));
+
+  // Throttling is otherwise invisible — a scan just gets slow. Mirror the
+  // shared controller's notices into the activity log so "this is taking a
+  // while" has a visible reason.
+  React.useEffect(() => sp.onThrottleChange((_snap, message) => logActivity(message)), [sp, logActivity]);
   // Libraries still waiting for their background scan, in scan order — kept
   // as a plain array (not a TaskQueue) so the currently-expanded library can
   // jump the line via prioritizeLibraryScan below. Scanned one at a time:
@@ -578,7 +587,7 @@ export const ExplorerView: React.FC<ExplorerViewProps> = ({
     // interruptForPriority), so it can safely run much hotter than the
     // Settings-configured default meant for unattended background use.
     const concurrency = isPriorityLibrary ? PRIORITY_SCAN_CONCURRENCY : 1;
-    logActivity(`"${lib.title}": starting ${isPriorityLibrary ? 'PRIORITY' : 'background'} live scan (concurrency ${concurrency}).`);
+    logActivity(`"${lib.title}": starting ${isPriorityLibrary ? 'PRIORITY' : 'background'} live scan (asking for concurrency ${concurrency}, currently allowed ${sp.effectiveConcurrency(concurrency)}).`);
     const startedAt = Date.now();
     let wasInterrupted = false;
     try {

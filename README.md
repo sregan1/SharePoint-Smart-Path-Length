@@ -38,9 +38,23 @@ SharePoint Smart Path Length is a SharePoint Framework web part that finds files
 | Feature | Description |
 |---|---|
 | **Full recursive scan** | Scans one or more entire document libraries — not just what's expanded in the tree — with a live item count and a cancel button |
+| **Throttling-aware status** | While scanning, the status line reports when SharePoint is throttling the tenant — including the remaining wait, and whether the scan is running at reduced concurrency as a result — so a slow scan is explained rather than just slow |
 | **Filter by severity** | View all scanned items, only warning-and-over, or only over-limit |
 | **Export to CSV or Excel** | Download a report matching the current filter; the Excel version color-codes rows by severity |
 | **Select all / select none** | Quickly choose which libraries to include before running a scan |
+
+### Adaptive throttling back-off
+
+SharePoint Online's request budget is tenant-wide and shared with every other consumer (OneDrive sync, Outlook, Teams, other apps), so scanning is deliberately self-limiting:
+
+| Behavior | Description |
+|---|---|
+| **One shared back-off gate** | A single HTTP 429/503 pauses *every* in-flight and queued request, not just the one that was refused — honoring `Retry-After` where SharePoint sends it, and capped exponential back-off with jitter where it doesn't. Retrying one request while its siblings keep hammering is what turns brief throttling into sustained throttling |
+| **Slow start** | Scans open well below the configured concurrency limit and ramp up (doubling) only while requests stay clean, so a first scan against an already-saturated tenant never charges in at full speed |
+| **Remembered edge** | The first throttling response records the concurrency that caused it: the scan halves immediately, switches to one-step-at-a-time growth, and thereafter recovers only to just *below* that level — approaching the tenant's limit from underneath instead of rediscovering it by breaching it again |
+| **Proactive avoidance** | Where the tenant sends the `RateLimit-*` decoration headers, a draining request budget slows the scan down *before* the first refusal arrives |
+| **Live adjustment** | Concurrency changes take effect on scans already in flight, and the Explorer's speculative prefetching shrinks along with everything else |
+| **Visible, not silent** | Every back-off, reduction and recovery step is recorded in the Explorer's Activity log, and the Report view's scan status shows the current wait or reduced concurrency |
 
 ### Configurable thresholds
 
@@ -133,6 +147,7 @@ src/
         ├── ExportService.ts                    # CSV + Excel (on-demand exceljs chunk) export
         └── sp/
             ├── spCore.ts                        # SPHttpClient wrapper: retry/backoff, paging, concurrency queue
+            ├── throttle.ts                      # Shared throttling state: back-off gate, adaptive concurrency
             ├── siteDiscovery.ts                 # Site title + document library discovery
             └── pathExplorer.ts                  # Folder listing (lazy) and full recursive library scan
 ```
@@ -157,7 +172,7 @@ src/
 
 **A library root or item's length looks off by a few characters** — the "library sync folder name" (e.g. `Clinical - Documents`) is a best guess in the `{Site Title} - {Library Title}` format; OneDrive's actual naming isn't documented by Microsoft and can differ (renamed libraries, name collisions get a numeric suffix). Override it per library from the Explorer toolbar once you know the real synced folder name.
 
-**A full scan is slow or throttled on a large library** — lower "Concurrent API requests during a full scan" in Settings; SharePoint Online throttles aggressive parallel REST calls.
+**A full scan is slow or reports throttling on a large library** — expected, and handled automatically: the scan pauses for as long as SharePoint asks, drops its concurrency, and continues (see [Adaptive throttling back-off](#adaptive-throttling-back-off)). Results are still complete — nothing is skipped. If it happens on every scan, lower "Concurrent API requests during a full scan (upper limit)" in Settings so scans start further from the tenant's limit.
 
 **A folder shows "Couldn't list this folder's contents... HTTP 406"** — SharePoint is refusing to enumerate that folder because a path somewhere in or under it is too long for its own REST API to describe, regardless of how the folder itself is addressed. The tool automatically falls back to an alternate lookup (the library's list items, filtered by their stored parent-folder path) that usually still works even when the normal route can't — if that also fails, the folder is marked over the limit on the strength of the original failure alone, even though its contents beyond that point can't be listed. This is a SharePoint-side limitation, not a scan failure to fix.
 

@@ -51,6 +51,27 @@ export const ReportView: React.FC<ReportViewProps> = ({
   const [entries, setEntries] = React.useState<PathReportEntry[] | null>(null);
   const abortRef = React.useRef<AbortController>();
 
+  // Throttling makes a scan slow with no other outward sign, which reads as a
+  // hung web part. Mirror the shared controller's state into the scan status so
+  // a long scan says *why* it's long. A ticker keeps the countdown live: the
+  // controller only notifies on state changes, not once per second.
+  const [throttleState, setThrottleState] = React.useState(() => sp.throttleSnapshot());
+  React.useEffect(() => sp.onThrottleChange((snap) => setThrottleState(snap)), [sp]);
+  React.useEffect(() => {
+    if (!scanning) return undefined;
+    const id = setInterval(() => setThrottleState(sp.throttleSnapshot()), 1000);
+    return () => clearInterval(id);
+  }, [scanning, sp]);
+  // Deliberately silent during slow start: the opening ramp is normal, healthy
+  // behavior, and reporting it would make every scan look like it was in
+  // trouble. Only an actual wait or a throttling-imposed reduction is worth
+  // saying out loud.
+  const throttleNote = throttleState.waitMsRemaining > 0
+    ? ` — throttled by SharePoint, waiting ${Math.ceil(throttleState.waitMsRemaining / 1000)}s`
+    : throttleState.reduced
+      ? ` — running gently (concurrency ${throttleState.limit} of ${throttleState.target}) after ${throttleState.throttleEvents} throttling response(s)`
+      : '';
+
   const [filterScope, setFilterScope] = React.useState<ExportScope>('all');
   const [exportOpen, setExportOpen] = React.useState(false);
   const [exportFormat, setExportFormat] = React.useState<ExportFormat>('csv');
@@ -216,7 +237,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
           {scanning && (
             <>
               <Spinner size="tiny" />
-              <Text>{cancelling ? 'Cancelling…' : `Scanned ${scanned} items…`}</Text>
+              <Text>{cancelling ? 'Cancelling…' : `Scanned ${scanned} items…${throttleNote}`}</Text>
               <Button appearance="secondary" onClick={cancelScan} disabled={cancelling}>Cancel</Button>
             </>
           )}
