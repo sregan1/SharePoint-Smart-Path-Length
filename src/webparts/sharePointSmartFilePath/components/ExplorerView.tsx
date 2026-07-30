@@ -142,6 +142,12 @@ const useStyles = makeStyles({
     display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS,
     color: tokens.colorNeutralForeground3, fontSize: tokens.fontSizeBase200,
   },
+  throttleBanner: {
+    display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalXS,
+    padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalM}`,
+    color: tokens.colorPaletteMarigoldForeground1, fontSize: tokens.fontSizeBase200,
+    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+  },
   iconLegend: {
     display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: tokens.spacingHorizontalL,
     padding: `0 ${tokens.spacingHorizontalM} ${tokens.spacingVerticalS}`,
@@ -149,6 +155,17 @@ const useStyles = makeStyles({
     borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
   },
   iconLegendItem: { display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalXXS, cursor: 'default' },
+  // The legend is a key, not a live status: a permanently animating spinner in
+  // a row that never changes pulls the eye away from the tree. Freeze the real
+  // Spinner rather than substituting a different graphic, so the legend still
+  // depicts exactly what the tree shows. Fluent animates descendants of the
+  // Spinner root (the ring and its tail), hence the descendant selectors.
+  staticSpinner: {
+    animationName: 'none',
+    '& *': { animationName: 'none' },
+    '&::before, &::after': { animationName: 'none' },
+    '& *::before, & *::after': { animationName: 'none' },
+  },
   twoCol: {
     display: 'grid', gridTemplateColumns: '340px 1fr', flexGrow: 1, minHeight: 0,
     '@media (max-width: 700px)': { gridTemplateColumns: '1fr' },
@@ -181,6 +198,8 @@ interface TreeNodeProps {
   belowStatusMap: Record<string, PathStatus>;
   scanningLibraries: Set<string>;
   scanInfo: Record<string, { source: 'cache' | 'live'; at: number }>;
+  /** Non-empty while the shared throttle controller is holding scans back — appended to the "still checking" tooltip so a stalled-looking spinner explains itself. */
+  throttleNote: string;
   onToggle: (node: PathNode) => void;
   onSelect: (node: PathNode) => void;
   onKeyDown: (e: React.KeyboardEvent, node: PathNode) => void;
@@ -188,7 +207,7 @@ interface TreeNodeProps {
 }
 
 const TreeNodeView: React.FC<TreeNodeProps> = ({
-  node, depth, selectedUrl, tabbableUrl, belowStatusMap, scanningLibraries, scanInfo, onToggle, onSelect, onKeyDown, registerRow,
+  node, depth, selectedUrl, tabbableUrl, belowStatusMap, scanningLibraries, scanInfo, throttleNote, onToggle, onSelect, onKeyDown, registerRow,
 }) => {
   const styles = useStyles();
   const isSelected = node.serverRelativeUrl === selectedUrl;
@@ -239,7 +258,10 @@ const TreeNodeView: React.FC<TreeNodeProps> = ({
           <PathStatusIcon status={node.status} />
         </Tooltip>
         {isScanning && (
-          <Tooltip content="Still checking this library for issues below — the dot may not be final yet" relationship="label">
+          <Tooltip
+            content={`Still checking this library for issues below — the dot may not be final yet.${throttleNote ? ` ${throttleNote}` : ''}`}
+            relationship="label"
+          >
             <Spinner size="extra-tiny" style={{ flexShrink: 0 }} />
           </Tooltip>
         )}
@@ -266,6 +288,7 @@ const TreeNodeView: React.FC<TreeNodeProps> = ({
               belowStatusMap={belowStatusMap}
               scanningLibraries={scanningLibraries}
               scanInfo={scanInfo}
+              throttleNote={throttleNote}
               onToggle={onToggle}
               onSelect={onSelect}
               onKeyDown={onKeyDown}
@@ -328,10 +351,30 @@ export const ExplorerView: React.FC<ExplorerViewProps> = ({
   // shrink first.
   const prefetchQueueRef = React.useRef(new TaskQueue(() => sp.effectiveConcurrency(3)));
 
-  // Throttling is otherwise invisible — a scan just gets slow. Mirror the
-  // shared controller's notices into the activity log so "this is taking a
-  // while" has a visible reason.
-  React.useEffect(() => sp.onThrottleChange((_snap, message) => logActivity(message)), [sp, logActivity]);
+  // Throttling is otherwise invisible — a scan just gets slow, and the only
+  // outward sign was a spinner that never seems to finish. Mirror the shared
+  // controller's notices into the activity log (a durable record of what
+  // happened) AND keep a live snapshot for an always-visible banner — the log
+  // only helps if someone thinks to open it; a stuck-looking spinner should
+  // explain itself without that.
+  const [throttleState, setThrottleState] = React.useState(() => sp.throttleSnapshot());
+  React.useEffect(() => sp.onThrottleChange((snap, message) => { setThrottleState(snap); logActivity(message); }), [sp, logActivity]);
+  // The controller only notifies on state *changes*, not once per second, so a
+  // ticker is needed to count the wait down live rather than freezing the
+  // displayed number at whatever it was when the throttle first fired.
+  React.useEffect(() => {
+    if (scanningLibraries.size === 0 && throttleState.waitMsRemaining === 0) return undefined;
+    const id = setInterval(() => setThrottleState(sp.throttleSnapshot()), 1000);
+    return () => clearInterval(id);
+  }, [sp, scanningLibraries.size, throttleState.waitMsRemaining]);
+  // Deliberately silent during slow start (see throttle.ts) — the opening
+  // ramp is normal, healthy behavior; only an actual wait or a
+  // throttling-imposed reduction is worth interrupting the user over.
+  const throttleNote = throttleState.waitMsRemaining > 0
+    ? `Throttled by SharePoint — background scanning is paused for ${Math.ceil(throttleState.waitMsRemaining / 1000)}s.`
+    : throttleState.reduced
+      ? `Background scanning is running gently (concurrency ${throttleState.limit} of ${throttleState.target}) after being throttled by SharePoint.`
+      : '';
   // Libraries still waiting for their background scan, in scan order — kept
   // as a plain array (not a TaskQueue) so the currently-expanded library can
   // jump the line via prioritizeLibraryScan below. Scanned one at a time:
@@ -973,6 +1016,13 @@ export const ExplorerView: React.FC<ExplorerViewProps> = ({
         </div>
       </div>
 
+      {throttleNote && (
+        <div className={styles.throttleBanner}>
+          <Spinner size="extra-tiny" />
+          <Text size={200}>{throttleNote}</Text>
+        </div>
+      )}
+
       <div className={styles.iconLegend}>
         <Tooltip content={pathStatusDescription('normal')} relationship="description">
           <span className={styles.iconLegendItem}>
@@ -994,7 +1044,7 @@ export const ExplorerView: React.FC<ExplorerViewProps> = ({
         </Tooltip>
         <Tooltip content="This library's background scan hasn't finished yet — the dot indicator (not the icon itself) may not be final." relationship="description">
           <span className={styles.iconLegendItem}>
-            <Spinner size="extra-tiny" />
+            <Spinner size="extra-tiny" className={styles.staticSpinner} />
             <Text size={200}>Scanning</Text>
           </span>
         </Tooltip>
@@ -1021,6 +1071,7 @@ export const ExplorerView: React.FC<ExplorerViewProps> = ({
               belowStatusMap={belowStatusMap}
               scanningLibraries={scanningLibraries}
               scanInfo={scanInfo}
+              throttleNote={throttleNote}
               onToggle={handleToggle}
               onSelect={handleSelect}
               onKeyDown={handleTreeKeyDown}

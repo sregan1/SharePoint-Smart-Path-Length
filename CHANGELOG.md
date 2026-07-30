@@ -33,9 +33,12 @@ All notable changes to this project are documented here.
   arrives, marking the safe ceiling without ever crossing it.
 - **Throttling is now visible instead of silent**
   The Report view's scan status shows the remaining wait or the reduced
-  concurrency, and the Explorer's Activity log records every back-off, reduction
-  and recovery step with the reason. A throttled scan previously just looked
-  slow, or like a hung web part.
+  concurrency. In the Explorer, a banner appears above the tree for as long as
+  background scanning is paused or slowed for this reason, and the spinner next
+  to any still-scanning library shows the same explanation on hover — a
+  throttled background scan previously just looked stuck, with no indication
+  why short of opening the Activity log, which now also records every
+  back-off, reduction and recovery step with the reason.
 - **Separate retry budgets for throttling and network errors**
   Throttling gets substantially more attempts than a socket failure, since
   waiting it out is the correct response rather than a sign anything is broken.
