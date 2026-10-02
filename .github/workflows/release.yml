@@ -1,20 +1,45 @@
 name: Release
 
-# Fires on the tag push itself, so `git push origin vX.Y.Z` is the whole release
-# process. The previous `release: [published]` trigger required someone to
-# create the GitHub Release by hand first and only then attached the .sppkg to
-# it — which is how v1.1.0 ended up tagged nowhere and released nowhere.
+# Runs on every push to main. If a Release for the package.json version already
+# exists the run is a no-op; otherwise it builds and creates the vX.Y.Z tag +
+# Release. Releasing is: bump the version, add the CHANGELOG entry, push to main.
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  build-and-release:
+  check:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      needed: ${{ steps.ver.outputs.needed }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine version and whether a release is needed
+        id: ver
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-and-release:
+    needs: check
+    if: needs.check.outputs.needed == 'true'
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -48,10 +73,8 @@ jobs:
       # Pulls this version's section out of CHANGELOG.md to use as the release
       # body. Fails loudly rather than publishing an empty release: a silently
       # note-less release is the same class of problem as a missing one.
-      - name: Extract release notes from CHANGELOG.md
-        id: notes
+      - name: Extract this version's CHANGELOG section
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
           # Matched with index() rather than a regex so the literal "[" needs no
           # escaping — backslashes here have to survive YAML, the shell and awk's
           # own string lexer, and silently degrade into a broken pattern if any
@@ -60,17 +83,17 @@ jobs:
             index($0, hdr) == 1      { found = 1; next }
             found && index($0, "## [") == 1 { exit }
             found                    { print }
-          ' CHANGELOG.md > release-notes.md
+          ' CHANGELOG.md > changelog-section.md
           # Strip the trailing "---" separator and any blank lines around it.
-          sed -i -e 's/^---$//' release-notes.md
-          if [ ! -s release-notes.md ] || ! grep -q '[^[:space:]]' release-notes.md; then
+          sed -i -e 's/^---$//' changelog-section.md
+          if [ ! -s changelog-section.md ] || ! grep -q '[^[:space:]]' changelog-section.md; then
             echo "No CHANGELOG.md section found for [$VERSION]" >&2
             exit 1
           fi
           echo "Release notes for $VERSION:"
-          cat release-notes.md
+          cat changelog-section.md
 
-      - name: Prepend installation instructions
+      - name: Build release notes
         run: |
           {
             echo "## Installation"
@@ -79,11 +102,14 @@ jobs:
             echo "2. Upload to your SharePoint App Catalog"
             echo "3. Deploy tenant-wide or to specific sites"
             echo ""
-          } > full-release-notes.md
-          cat release-notes.md >> full-release-notes.md
+          } > release-notes.md
+          cat changelog-section.md >> release-notes.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ needs.check.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: v${{ needs.check.outputs.version }}
           files: ${{ steps.sppkg.outputs.path }}
-          body_path: full-release-notes.md
+          body_path: release-notes.md
