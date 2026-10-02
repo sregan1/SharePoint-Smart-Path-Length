@@ -4,6 +4,21 @@ All notable changes to this project are documented here.
 
 ---
 
+## [1.3.0] — 2026-10-01
+
+### Added
+
+- **Localization in 30 languages**
+  The web part UI, property pane, status messages, and CSV/Excel exports are now
+  localized in the same 30 languages as Smart Org Chart (Arabic, Chinese
+  Simplified/Traditional, Czech, Danish, Dutch, English, Finnish, French, German,
+  Greek, Hebrew, Hindi, Hungarian, Indonesian, Italian, Japanese, Korean,
+  Norwegian Bokmål, Polish, Portuguese Brazil/Portugal, Romanian, Russian,
+  Spanish, Swedish, Thai, Turkish, Ukrainian, Vietnamese). Arabic and Hebrew
+  render right-to-left. The Activity log's diagnostic entries remain in English.
+
+---
+
 ## [1.2.0] — 2026-07-30
 
 ### Changed

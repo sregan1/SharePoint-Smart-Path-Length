@@ -8,6 +8,7 @@ import {
   Folder24Regular, Document24Regular, Info16Regular,
   ArrowClockwise16Regular, DocumentBulletList16Regular,
 } from '@fluentui/react-icons';
+import * as strings from 'SharePointSmartFilePathWebPartStrings';
 
 import { SharePointService } from '../services/SharePointService';
 import { LibraryInfo, PathNode, PathStatus } from '../models/models';
@@ -17,6 +18,7 @@ import {
 import { buildOneDrivePath, defaultSyncFolderName, getPathStatus, worseStatus } from './shared/oneDrivePath';
 import { TaskQueue, PathTooLongError } from '../services/sp/spCore';
 import { ScannedItem } from '../services/sp/pathExplorer';
+import { fmt } from './shared/format';
 
 const LS_LAST_LIBRARY = 'sp-smart-path-length-lastLibrary';
 
@@ -111,9 +113,9 @@ function writeScanCache(siteUrl: string, libraryRootUrl: string, items: ScannedI
 
 function describeAge(at: number): string {
   const minutes = Math.round((Date.now() - at) / 60000);
-  if (minutes < 1) return 'just now';
-  if (minutes === 1) return '1 min ago';
-  return `${minutes} min ago`;
+  if (minutes < 1) return strings.Age_JustNow;
+  if (minutes === 1) return strings.Age_OneMinute;
+  return fmt(strings.Age_Minutes, { count: minutes });
 }
 
 // Propagates each loaded node's own status/hasErrorBelow up through its
@@ -229,7 +231,11 @@ const TreeNodeView: React.FC<TreeNodeProps> = ({
   const isLibraryRoot = node.libraryRootUrl === node.serverRelativeUrl;
   const rootScanInfo = isLibraryRoot ? scanInfo[node.serverRelativeUrl] : undefined;
   const statusTooltip = rootScanInfo
-    ? `${pathStatusDescription(node.status)} (Below-item check: ${rootScanInfo.source === 'cache' ? 'from cache' : 'live scan'}, ${describeAge(rootScanInfo.at)}.)`
+    ? fmt(strings.Tree_ScanInfo, {
+      description: pathStatusDescription(node.status),
+      source: rootScanInfo.source === 'cache' ? strings.Tree_SourceCache : strings.Tree_SourceLive,
+      age: describeAge(rootScanInfo.at),
+    })
     : pathStatusDescription(node.status);
 
   return (
@@ -259,14 +265,14 @@ const TreeNodeView: React.FC<TreeNodeProps> = ({
         </Tooltip>
         {isScanning && (
           <Tooltip
-            content={`Still checking this library for issues below — the dot may not be final yet.${throttleNote ? ` ${throttleNote}` : ''}`}
+            content={`${strings.Tree_StillChecking}${throttleNote ? ` ${throttleNote}` : ''}`}
             relationship="label"
           >
             <Spinner size="extra-tiny" style={{ flexShrink: 0 }} />
           </Tooltip>
         )}
         {below !== 'normal' && (
-          <Tooltip content={`Contains an item ${below === 'error' ? 'over the limit' : 'at warning level'} below`} relationship="label">
+          <Tooltip content={below === 'error' ? strings.Tree_ContainsBelowError : strings.Tree_ContainsBelowWarning} relationship="label">
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', flexShrink: 0, background: below === 'error' ? tokens.colorPaletteRedForeground1 : tokens.colorPaletteMarigoldForeground1 }} />
           </Tooltip>
         )}
@@ -371,9 +377,9 @@ export const ExplorerView: React.FC<ExplorerViewProps> = ({
   // ramp is normal, healthy behavior; only an actual wait or a
   // throttling-imposed reduction is worth interrupting the user over.
   const throttleNote = throttleState.waitMsRemaining > 0
-    ? `Throttled by SharePoint — background scanning is paused for ${Math.ceil(throttleState.waitMsRemaining / 1000)}s.`
+    ? fmt(strings.Throttle_Paused, { seconds: Math.ceil(throttleState.waitMsRemaining / 1000) })
     : throttleState.reduced
-      ? `Background scanning is running gently (concurrency ${throttleState.limit} of ${throttleState.target}) after being throttled by SharePoint.`
+      ? fmt(strings.Throttle_Gentle, { limit: throttleState.limit, target: throttleState.target })
       : '';
   // Libraries still waiting for their background scan, in scan order — kept
   // as a plain array (not a TaskQueue) so the currently-expanded library can
@@ -564,10 +570,10 @@ export const ExplorerView: React.FC<ExplorerViewProps> = ({
           // instead of just showing a generic load error. err.message
           // already says which addressing mode was used (see
           // getFolderContents), which pins down which of the two it is.
-          node.loadError = `Couldn't list "${folderPath}": ${err.message}`;
+          node.loadError = fmt(strings.Explorer_CouldntList, { path: folderPath, error: err.message });
           node.status = 'error';
         } else {
-          node.loadError = `Couldn't load "${folderPath}": ${err?.message ?? String(err)}`;
+          node.loadError = fmt(strings.Explorer_CouldntLoad, { path: folderPath, error: err?.message ?? String(err) });
           // A folder that failed to load for any other reason (permissions,
           // a network blip) still shouldn't silently keep reading "OK" —
           // treat it as at least a warning, mirroring how the background
@@ -989,29 +995,29 @@ export const ExplorerView: React.FC<ExplorerViewProps> = ({
     <div className={styles.root}>
       <div className={styles.toolbar}>
         <div className={styles.field}>
-          <Label htmlFor="samplePathInput">Sample OneDrive path prefix</Label>
+          <Label htmlFor="samplePathInput">{strings.Common_SamplePathLabel}</Label>
           <Input id="samplePathInput" value={samplePath} onChange={(_, d) => onSamplePathChange(d.value)}
             placeholder={'C:\\Users\\UsernamePath\\OneDrive - Company\\'} />
         </div>
         {selectedNode && (
           <div className={styles.field}>
-            <Label htmlFor="syncFolderInput">Library sync folder name{selectedLib ? ` (${selectedLib.title})` : ''}</Label>
+            <Label htmlFor="syncFolderInput">{strings.Explorer_SyncFolderLabel}{selectedLib ? ` (${selectedLib.title})` : ''}</Label>
             <Input id="syncFolderInput" value={selectedSyncFolder}
               onChange={(_, d) => setSyncFolderOverrides((prev) => ({ ...prev, [selectedNode.libraryRootUrl]: d.value }))} />
           </div>
         )}
         <div className={styles.legend}>
           <Info16Regular />
-          <span>Warning at {warningLength}+ characters, over limit at {errorLength}+ (set in the web part's edit properties)</span>
+          <span>{fmt(strings.Explorer_ThresholdLegend, { warning: warningLength, error: errorLength })}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS, marginLeft: 'auto' }}>
-          <Tooltip content="Re-check every library live, ignoring cached results" relationship="label">
+          <Tooltip content={strings.Explorer_RefreshTooltip} relationship="label">
             <Button appearance="secondary" icon={<ArrowClockwise16Regular />} onClick={handleRefreshScans}>
-              Refresh
+              {strings.Explorer_Refresh}
             </Button>
           </Tooltip>
           <Button appearance="secondary" icon={<DocumentBulletList16Regular />} onClick={() => setShowActivityLog(true)}>
-            Activity log
+            {strings.Explorer_ActivityLog}
           </Button>
         </div>
       </div>
@@ -1027,40 +1033,40 @@ export const ExplorerView: React.FC<ExplorerViewProps> = ({
         <Tooltip content={pathStatusDescription('normal')} relationship="description">
           <span className={styles.iconLegendItem}>
             <PathStatusIcon status="normal" />
-            <Text size={200}>OK</Text>
+            <Text size={200}>{strings.Status_OK}</Text>
           </span>
         </Tooltip>
         <Tooltip content={pathStatusDescription('warning')} relationship="description">
           <span className={styles.iconLegendItem}>
             <PathStatusIcon status="warning" />
-            <Text size={200}>Warning</Text>
+            <Text size={200}>{strings.Status_Warning}</Text>
           </span>
         </Tooltip>
         <Tooltip content={pathStatusDescription('error')} relationship="description">
           <span className={styles.iconLegendItem}>
             <PathStatusIcon status="error" />
-            <Text size={200}>Over limit</Text>
+            <Text size={200}>{strings.Status_OverLimit}</Text>
           </span>
         </Tooltip>
-        <Tooltip content="This library's background scan hasn't finished yet — the dot indicator (not the icon itself) may not be final." relationship="description">
+        <Tooltip content={strings.Legend_ScanningTooltip} relationship="description">
           <span className={styles.iconLegendItem}>
             <Spinner size="extra-tiny" className={styles.staticSpinner} />
-            <Text size={200}>Scanning</Text>
+            <Text size={200}>{strings.Legend_Scanning}</Text>
           </span>
         </Tooltip>
-        <Tooltip content="This folder contains a warning- or over-limit item somewhere inside it, even if its own path is fine — expand it to find which one." relationship="description">
+        <Tooltip content={strings.Legend_IssueBelowTooltip} relationship="description">
           <span className={styles.iconLegendItem}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: tokens.colorPaletteMarigoldForeground1 }} />
-            <Text size={200}>Issue below</Text>
+            <Text size={200}>{strings.Legend_IssueBelow}</Text>
           </span>
         </Tooltip>
       </div>
 
       <div className={styles.twoCol}>
-        <div className={styles.treePanel} role="tree" aria-label="Document libraries">
+        <div className={styles.treePanel} role="tree" aria-label={strings.Explorer_TreeAriaLabel}>
           {loadError && <Text style={{ color: tokens.colorPaletteRedForeground1 }}>{loadError}</Text>}
-          {!loadError && libraries === null && <Spinner label="Loading libraries…" />}
-          {!loadError && libraries !== null && libraries.length === 0 && <Text>No document libraries found on this site.</Text>}
+          {!loadError && libraries === null && <Spinner label={strings.Common_LoadingLibraries} />}
+          {!loadError && libraries !== null && libraries.length === 0 && <Text>{strings.Explorer_NoLibraries}</Text>}
           {roots.map((root) => (
             <TreeNodeView
               key={root.serverRelativeUrl}
@@ -1080,28 +1086,28 @@ export const ExplorerView: React.FC<ExplorerViewProps> = ({
           ))}
         </div>
         <div className={styles.detailPanel}>
-          {!selectedNode && <Text>Select an item in the tree to see its estimated OneDrive path and character count.</Text>}
+          {!selectedNode && <Text>{strings.Explorer_SelectItemPrompt}</Text>}
           {selectedNode && (
             <>
               <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: tokens.spacingHorizontalS }}>
                 {selectedNode.isFolder ? <Folder24Regular /> : <Document24Regular />}
                 <Text weight="semibold" size={500} style={{ overflowWrap: 'anywhere' }}>{selectedNode.name}</Text>
                 <Badge color={pathStatusBadgeColor(selectedNode.status)} appearance="filled" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  {pathStatusLabel(selectedNode.status)} — {selectedNode.oneDrivePathLength} chars
+                  {fmt(strings.Explorer_StatusWithChars, { status: pathStatusLabel(selectedNode.status), count: selectedNode.oneDrivePathLength })}
                 </Badge>
               </div>
               {selectedNode.isFolder && selectedBelow !== 'normal' && (
                 <Text style={{ display: 'block', marginTop: tokens.spacingVerticalXS, color: pathStatusColor(selectedBelow) }}>
-                  Contains an item {selectedBelow === 'error' ? 'over the limit' : 'at warning level'} somewhere below this folder.
+                  {selectedBelow === 'error' ? strings.Explorer_ContainsBelowError : strings.Explorer_ContainsBelowWarning}
                 </Text>
               )}
               <div className={styles.pathBox}>{selectedFullPath}</div>
               <table className={styles.breakdownTable}>
                 <tbody>
-                  <tr><td style={{ paddingRight: 16, color: tokens.colorNeutralForeground3 }}>Sample path prefix</td><td>{prefixLen} chars</td></tr>
-                  <tr><td style={{ paddingRight: 16, color: tokens.colorNeutralForeground3 }}>Library sync folder ("{selectedSyncFolder}")</td><td>{selectedSyncFolder.length} chars</td></tr>
-                  <tr><td style={{ paddingRight: 16, color: tokens.colorNeutralForeground3 }}>Relative path within library</td><td>{relativeLen} chars</td></tr>
-                  <tr><td style={{ paddingRight: 16, fontWeight: tokens.fontWeightSemibold }}>Total (incl. separators)</td><td style={{ fontWeight: tokens.fontWeightSemibold }}>{selectedNode.oneDrivePathLength} chars</td></tr>
+                  <tr><td style={{ paddingRight: 16, color: tokens.colorNeutralForeground3 }}>{strings.Breakdown_Prefix}</td><td>{fmt(strings.Breakdown_Chars, { count: prefixLen })}</td></tr>
+                  <tr><td style={{ paddingRight: 16, color: tokens.colorNeutralForeground3 }}>{fmt(strings.Breakdown_SyncFolder, { name: selectedSyncFolder })}</td><td>{fmt(strings.Breakdown_Chars, { count: selectedSyncFolder.length })}</td></tr>
+                  <tr><td style={{ paddingRight: 16, color: tokens.colorNeutralForeground3 }}>{strings.Breakdown_Relative}</td><td>{fmt(strings.Breakdown_Chars, { count: relativeLen })}</td></tr>
+                  <tr><td style={{ paddingRight: 16, fontWeight: tokens.fontWeightSemibold }}>{strings.Breakdown_Total}</td><td style={{ fontWeight: tokens.fontWeightSemibold }}>{fmt(strings.Breakdown_Chars, { count: selectedNode.oneDrivePathLength })}</td></tr>
                 </tbody>
               </table>
             </>
@@ -1112,7 +1118,7 @@ export const ExplorerView: React.FC<ExplorerViewProps> = ({
       <Dialog open={showActivityLog} onOpenChange={(_, d) => setShowActivityLog(d.open)}>
         <DialogSurface>
           <DialogBody>
-            <DialogTitle>Activity log</DialogTitle>
+            <DialogTitle>{strings.Explorer_ActivityLog}</DialogTitle>
             <DialogContent>
               <div style={{
                 display: 'flex', flexDirection: 'column-reverse', gap: '2px', maxHeight: '50vh', overflowY: 'auto',
@@ -1120,7 +1126,7 @@ export const ExplorerView: React.FC<ExplorerViewProps> = ({
                 background: tokens.colorNeutralBackground3, padding: tokens.spacingHorizontalM, borderRadius: tokens.borderRadiusMedium,
               }}
               >
-                {activityLog.length === 0 && <Text>Nothing logged yet.</Text>}
+                {activityLog.length === 0 && <Text>{strings.Explorer_ActivityLogEmpty}</Text>}
                 {activityLog.map((entry, i) => (
                   // eslint-disable-next-line react/no-array-index-key
                   <div key={i} style={{ overflowWrap: 'anywhere' }}>
@@ -1130,9 +1136,9 @@ export const ExplorerView: React.FC<ExplorerViewProps> = ({
               </div>
             </DialogContent>
             <DialogActions>
-              <Button appearance="secondary" onClick={() => setActivityLog([])} disabled={activityLog.length === 0}>Clear</Button>
+              <Button appearance="secondary" onClick={() => setActivityLog([])} disabled={activityLog.length === 0}>{strings.Common_Clear}</Button>
               <DialogTrigger disableButtonEnhancement>
-                <Button appearance="primary">Close</Button>
+                <Button appearance="primary">{strings.Common_Close}</Button>
               </DialogTrigger>
             </DialogActions>
           </DialogBody>

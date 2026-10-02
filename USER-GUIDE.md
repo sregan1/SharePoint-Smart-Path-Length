@@ -1,6 +1,6 @@
 # SharePoint Smart Path Length — User Guide
 
-**Version 1.2.0**
+**Version 1.3.0**
 **Applies to:** SharePoint Online
 
 ---
@@ -13,11 +13,12 @@
 4. [Explorer](#explorer)
 5. [Report](#report)
 6. [Settings](#settings)
-7. [When SharePoint Slows the Tool Down](#when-sharepoint-slows-the-tool-down)
-8. [Web Part Configuration](#web-part-configuration)
-9. [Understanding the OneDrive Path Estimate](#understanding-the-onedrive-path-estimate)
-10. [Frequently Asked Questions](#frequently-asked-questions)
-11. [Troubleshooting](#troubleshooting)
+7. [Language Support](#language-support)
+8. [When SharePoint Slows the Tool Down](#when-sharepoint-slows-the-tool-down)
+9. [Web Part Configuration](#web-part-configuration)
+10. [Understanding the OneDrive Path Estimate](#understanding-the-onedrive-path-estimate)
+11. [Frequently Asked Questions](#frequently-asked-questions)
+12. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -126,6 +127,16 @@ Click the **gear icon** in the banner to open Settings. These are saved to your 
 - **Include hidden and system libraries** — off by default; turn on to also scan libraries SharePoint normally hides.
 
 The warning and over-limit thresholds are **not** set here — see Web Part Configuration below.
+
+---
+
+## Language Support
+
+The web part appears in your own SharePoint display language automatically — there is nothing to configure. It is available in 30 languages: Arabic, Chinese (Simplified), Chinese (Traditional), Czech, Danish, Dutch, English, Finnish, French, German, Greek, Hebrew, Hindi, Hungarian, Indonesian, Italian, Japanese, Korean, Norwegian (Bokmål), Polish, Portuguese (Brazil), Portuguese (Portugal), Romanian, Russian, Spanish, Swedish, Thai, Turkish, Ukrainian, and Vietnamese.
+
+This covers the screens, settings, status messages, the web part's property pane, and the column headings and summary in exported CSV and Excel reports. Arabic and Hebrew display right to left. If your language isn't in the list, the web part appears in English.
+
+The **Activity log** is a technical record and stays in English in every language.
 
 ---
 

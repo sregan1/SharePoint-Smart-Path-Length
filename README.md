@@ -42,6 +42,7 @@ SharePoint Smart Path Length is a SharePoint Framework web part that finds files
 | **Throttling-aware status** | While scanning, the status line reports when SharePoint is throttling the tenant — including the remaining wait, and whether the scan is running at reduced concurrency as a result — so a slow scan is explained rather than just slow |
 | **Filter by severity** | View all scanned items, only warning-and-over, or only over-limit |
 | **Export to CSV or Excel** | Download a report matching the current filter; the Excel version color-codes rows by severity |
+| **30 languages** | The UI, property pane, and exports follow the user's SharePoint language (same 30 languages as Smart Org Chart); Arabic and Hebrew render right-to-left |
 | **Select all / select none** | Quickly choose which libraries to include before running a scan |
 
 ### Adaptive throttling back-off
@@ -136,10 +137,12 @@ src/
     │   ├── ReportView.tsx                      # Full-scan report, filters, export dialog
     │   ├── SettingsView.tsx                    # Session-only settings (sample path, concurrency)
     │   └── shared/
+    │       ├── format.ts                       # Placeholder formatter + RTL locale check for localized strings
     │       ├── oneDrivePath.ts                 # Path-length math (buildOneDrivePath, getPathStatus)
     │       ├── pathStatus.tsx                  # Status icon/color/badge mapping
     │       ├── pathFilters.ts                  # Shared filter used by both the UI table and export
     │       └── PathTable.tsx                   # Sortable results table (Report view)
+    ├── loc/                                    # Localized strings: en-us.js source + 29 translations, mystrings.d.ts typings
     ├── models/
     │   ├── models.ts                           # Shared TypeScript interfaces
     │   └── defaults.ts                         # Single source of truth for default threshold/path values

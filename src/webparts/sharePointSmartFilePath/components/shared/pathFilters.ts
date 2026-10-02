@@ -1,3 +1,4 @@
+import * as strings from 'SharePointSmartFilePathWebPartStrings';
 import { ExportScope, PathReportEntry } from '../../models/models';
 
 // Shared by the on-screen Report table and the Export service so the two can
@@ -15,8 +16,8 @@ export function applyPathFilter(entries: PathReportEntry[], scope: ExportScope):
 
 export function scopeLabel(scope: ExportScope): string {
   switch (scope) {
-    case 'overOnly': return 'Paths over the limit only';
-    case 'warningAndOver': return 'Paths at warning level and over';
-    default: return 'All paths';
+    case 'overOnly': return strings.Scope_OverOnly;
+    case 'warningAndOver': return strings.Scope_WarningAndOver;
+    default: return strings.Scope_All;
   }
 }

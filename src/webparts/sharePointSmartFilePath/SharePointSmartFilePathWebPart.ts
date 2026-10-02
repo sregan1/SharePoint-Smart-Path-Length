@@ -4,10 +4,12 @@ import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import { ThemeProvider, IReadonlyTheme } from '@microsoft/sp-component-base';
 import * as React from 'react';
 import * as ReactDom from 'react-dom';
+import * as strings from 'SharePointSmartFilePathWebPartStrings';
 
 import { App, IBrandColors } from './components/App';
 import { SharePointService } from './services/SharePointService';
 import { ExportService } from './services/ExportService';
+import { isRtlLocale } from './components/shared/format';
 import { DEFAULT_WARNING_LENGTH, DEFAULT_ERROR_LENGTH, DEFAULT_SAMPLE_PATH } from './models/defaults';
 
 export interface ISharePointSmartFilePathWebPartProps {
@@ -78,6 +80,7 @@ export default class SharePointSmartFilePathWebPart extends BaseClientSideWebPar
         defaultSamplePath: this.properties.defaultSamplePath ?? DEFAULT_SAMPLE_PATH,
         brandColors: this._brandColors,
         isEditMode: this.displayMode === DisplayMode.Edit,
+        isRtl: isRtlLocale(this.context?.pageContext?.cultureInfo?.currentUICultureName),
       });
       ReactDom.render(element, this.domElement);
     } catch (err: any) {
@@ -114,9 +117,9 @@ export default class SharePointSmartFilePathWebPart extends BaseClientSideWebPar
   }
 
   private _validateThresholds(warning: number, error: number): string {
-    if (!Number.isFinite(warning) || warning <= 0) return 'Enter a positive whole number.';
-    if (!Number.isFinite(error) || error <= 0) return 'Enter a positive whole number.';
-    if (warning >= error) return 'The warning length must be less than the over-limit length.';
+    if (!Number.isFinite(warning) || warning <= 0) return strings.PropertyPane_Validation_PositiveInteger;
+    if (!Number.isFinite(error) || error <= 0) return strings.PropertyPane_Validation_PositiveInteger;
+    if (warning >= error) return strings.PropertyPane_Validation_WarningLessThanError;
     return '';
   }
 
@@ -133,7 +136,7 @@ export default class SharePointSmartFilePathWebPart extends BaseClientSideWebPar
       type: TEXT_FIELD_TYPE,
       targetProperty: 'warningLength',
       properties: {
-        label: 'Warning length (characters)',
+        label: strings.PropertyPane_WarningLength_Label,
         value: String(warningLength),
         deferredValidationTime: 300,
         onGetErrorMessage: (value: string): string =>
@@ -144,7 +147,7 @@ export default class SharePointSmartFilePathWebPart extends BaseClientSideWebPar
       type: TEXT_FIELD_TYPE,
       targetProperty: 'errorLength',
       properties: {
-        label: 'Over-limit length (characters)',
+        label: strings.PropertyPane_ErrorLength_Label,
         value: String(errorLength),
         deferredValidationTime: 300,
         onGetErrorMessage: (value: string): string =>
@@ -155,7 +158,7 @@ export default class SharePointSmartFilePathWebPart extends BaseClientSideWebPar
       type: TEXT_FIELD_TYPE,
       targetProperty: 'defaultSamplePath',
       properties: {
-        label: 'Default sample OneDrive path prefix',
+        label: strings.PropertyPane_SamplePath_Label,
         value: this.properties.defaultSamplePath ?? DEFAULT_SAMPLE_PATH,
         deferredValidationTime: 300,
       },
@@ -163,14 +166,14 @@ export default class SharePointSmartFilePathWebPart extends BaseClientSideWebPar
 
     return {
       pages: [{
-        header: { description: 'SharePoint Smart Path Length configuration' },
+        header: { description: strings.PropertyPane_HeaderDescription },
         groups: [
           {
-            groupName: 'Path length thresholds',
+            groupName: strings.PropertyPane_Group_Thresholds,
             groupFields: [warningField, errorField],
           },
           {
-            groupName: 'OneDrive sample path',
+            groupName: strings.PropertyPane_Group_SamplePath,
             groupFields: [samplePathField],
           },
         ],

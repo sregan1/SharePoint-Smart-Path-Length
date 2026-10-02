@@ -6,15 +6,50 @@
   "version": "*",
   "manifestVersion": 2,
   "requiresCustomScript": false,
-  "supportedHosts": ["SharePointWebPart"],
+  "supportedHosts": [
+    "SharePointWebPart"
+  ],
   "supportsThemeVariants": true,
   "preconfiguredEntries": [
     {
       "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
-      "group": { "default": "Other" },
-      "title": { "default": "SharePoint Smart Path Length" },
+      "group": {
+        "default": "Other"
+      },
+      "title": {
+        "default": "SharePoint Smart Path Length"
+      },
       "description": {
-        "default": "Finds files and folders whose paths would be too long for a OneDrive shortcut"
+        "default": "Finds files and folders whose paths would be too long for a OneDrive shortcut",
+        "ar-sa": "يبحث عن الملفات والمجلدات التي يكون مسارها أطول من اللازم لاختصار OneDrive",
+        "cs-cz": "Najde soubory a složky, jejichž cesty by byly příliš dlouhé pro zástupce OneDrive",
+        "da-dk": "Finder filer og mapper, hvis stier ville være for lange til en OneDrive-genvej",
+        "de-de": "Findet Dateien und Ordner, deren Pfade für eine OneDrive-Verknüpfung zu lang wären",
+        "el-gr": "Εντοπίζει αρχεία και φακέλους των οποίων οι διαδρομές θα ήταν πολύ μεγάλες για συντόμευση του OneDrive",
+        "es-es": "Encuentra archivos y carpetas cuyas rutas serían demasiado largas para un acceso directo de OneDrive",
+        "fi-fi": "Löytää tiedostot ja kansiot, joiden polut olisivat liian pitkiä OneDrive-pikakuvakkeelle",
+        "fr-fr": "Recherche les fichiers et dossiers dont les chemins seraient trop longs pour un raccourci OneDrive",
+        "he-il": "מוצא קבצים ותיקיות שהנתיבים שלהם ארוכים מדי עבור קיצור דרך של OneDrive",
+        "hi-in": "ऐसी फ़ाइलें और फ़ोल्डर खोजता है जिनके पथ OneDrive शॉर्टकट के लिए बहुत लंबे होंगे",
+        "hu-hu": "Megkeresi azokat a fájlokat és mappákat, amelyek elérési útja túl hosszú lenne egy OneDrive-parancsikonhoz",
+        "id-id": "Menemukan file dan folder yang jalurnya akan terlalu panjang untuk pintasan OneDrive",
+        "it-it": "Trova file e cartelle i cui percorsi sarebbero troppo lunghi per un collegamento di OneDrive",
+        "ja-jp": "OneDrive ショートカットにはパスが長すぎるファイルとフォルダーを検出します",
+        "ko-kr": "OneDrive 바로 가기에 사용하기에는 경로가 너무 긴 파일과 폴더를 찾습니다",
+        "nb-no": "Finner filer og mapper med stier som ville være for lange for en OneDrive-snarvei",
+        "nl-nl": "Zoekt bestanden en mappen waarvan het pad te lang zou zijn voor een OneDrive-snelkoppeling",
+        "pl-pl": "Znajduje pliki i foldery, których ścieżki byłyby zbyt długie dla skrótu OneDrive",
+        "pt-br": "Encontra arquivos e pastas cujos caminhos seriam longos demais para um atalho do OneDrive",
+        "pt-pt": "Encontra ficheiros e pastas cujos caminhos seriam demasiado longos para um atalho do OneDrive",
+        "ro-ro": "Găsește fișierele și folderele ale căror căi ar fi prea lungi pentru o comandă rapidă OneDrive",
+        "ru-ru": "Находит файлы и папки, пути к которым были бы слишком длинными для ярлыка OneDrive",
+        "sv-se": "Hittar filer och mappar vars sökvägar skulle bli för långa för en OneDrive-genväg",
+        "th-th": "ค้นหาไฟล์และโฟลเดอร์ที่มีเส้นทางยาวเกินไปสำหรับทางลัด OneDrive",
+        "tr-tr": "Yolları bir OneDrive kısayolu için çok uzun olacak dosya ve klasörleri bulur",
+        "uk-ua": "Знаходить файли та папки, шляхи до яких були б надто довгими для ярлика OneDrive",
+        "vi-vn": "Tìm các tệp và thư mục có đường dẫn quá dài đối với lối tắt OneDrive",
+        "zh-cn": "查找路径对于 OneDrive 快捷方式而言过长的文件和文件夹",
+        "zh-tw": "尋找路徑對 OneDrive 捷徑而言過長的檔案和資料夾"
       },
       "iconImageUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzYwNWU1YyIgZD0iTTMuNSA2LjI1VjhoNC42M2MuMiAwIC4zOS0uMDguNTMtLjIybDEuNTMtMS41My0xLjUzLTEuNTNhLjc1Ljc1IDAgMCAwLS41My0uMjJINS4yNWMtLjk3IDAtMS43NS43OC0xLjc1IDEuNzVabS0xLjUgMEMyIDQuNDUgMy40NiAzIDUuMjUgM2gyLjg4Yy42IDAgMS4xNy4yNCAxLjU5LjY2bDEuODQgMS44NGg3LjE5YzEuOCAwIDMuMjUgMS40NiAzLjI1IDMuMjV2NC4wNmE2LjUyIDYuNTIgMCAwIDAtMS41LTEuMDhWOC43NWMwLS45Ny0uNzgtMS43NS0xLjc1LTEuNzVoLTcuMTlMOS43MiA4Ljg0Yy0uNDIuNDItMSAuNjYtMS42LjY2SDMuNXY4LjI1YzAgLjk3Ljc4IDEuNzUgMS43NSAxLjc1aDYuMDZjLjE4LjUzLjQyIDEuMDQuNzEgMS41SDUuMjVBMy4yNSAzLjI1IDAgMCAxIDIgMTcuNzVWNi4yNVpNMjMgMTcuNWE1LjUgNS41IDAgMSAxLTExIDAgNS41IDUuNSAwIDAgMSAxMSAwWm0tOS41IDBjMCAuODMuMjYgMS42LjcgMi4yNWw1LjU1LTUuNTZhNCA0IDAgMCAwLTYuMjUgMy4zWm00IDRhNCA0IDAgMCAwIDMuMy02LjI1bC01LjU1IDUuNTZjLjY0LjQ0IDEuNDIuNjkgMi4yNS42OVoiLz48L3N2Zz4=",
       "properties": {

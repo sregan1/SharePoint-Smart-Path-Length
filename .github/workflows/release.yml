@@ -70,8 +70,20 @@ jobs:
           echo "Release notes for $VERSION:"
           cat release-notes.md
 
+      - name: Prepend installation instructions
+        run: |
+          {
+            echo "## Installation"
+            echo ""
+            echo "1. Download \`sharepoint-smart-path-length.sppkg\`"
+            echo "2. Upload to your SharePoint App Catalog"
+            echo "3. Deploy tenant-wide or to specific sites"
+            echo ""
+          } > full-release-notes.md
+          cat release-notes.md >> full-release-notes.md
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ steps.sppkg.outputs.path }}
-          body_path: release-notes.md
+          body_path: full-release-notes.md

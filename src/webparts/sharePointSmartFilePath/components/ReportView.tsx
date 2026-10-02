@@ -5,6 +5,7 @@ import {
   RadioGroup, Radio, Label,
 } from '@fluentui/react-components';
 import { ArrowLeft24Regular, ArrowDownload24Regular } from '@fluentui/react-icons';
+import * as strings from 'SharePointSmartFilePathWebPartStrings';
 
 import { SharePointService } from '../services/SharePointService';
 import { ExportService } from '../services/ExportService';
@@ -12,6 +13,7 @@ import { LibraryInfo, PathReportEntry, ExportScope, ExportFormat } from '../mode
 import { buildOneDrivePath, defaultSyncFolderName, getPathStatus } from './shared/oneDrivePath';
 import { applyPathFilter, scopeLabel } from './shared/pathFilters';
 import { PathTable } from './shared/PathTable';
+import { fmt } from './shared/format';
 
 const useStyles = makeStyles({
   root: { display: 'flex', flexDirection: 'column', height: '100%' },
@@ -67,9 +69,9 @@ export const ReportView: React.FC<ReportViewProps> = ({
   // trouble. Only an actual wait or a throttling-imposed reduction is worth
   // saying out loud.
   const throttleNote = throttleState.waitMsRemaining > 0
-    ? ` — throttled by SharePoint, waiting ${Math.ceil(throttleState.waitMsRemaining / 1000)}s`
+    ? fmt(strings.Throttle_ReportWaiting, { seconds: Math.ceil(throttleState.waitMsRemaining / 1000) })
     : throttleState.reduced
-      ? ` — running gently (concurrency ${throttleState.limit} of ${throttleState.target}) after ${throttleState.throttleEvents} throttling response(s)`
+      ? fmt(strings.Throttle_ReportGentle, { limit: throttleState.limit, target: throttleState.target, events: throttleState.throttleEvents })
       : '';
 
   const [filterScope, setFilterScope] = React.useState<ExportScope>('all');
@@ -159,7 +161,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
           });
         }
       } catch (err: any) {
-        setLoadError(`Scan of "${lib.title}" failed: ${err?.message ?? String(err)}`);
+        setLoadError(fmt(strings.Report_ScanFailed, { library: lib.title, error: err?.message ?? String(err) }));
       }
     }
 
@@ -198,27 +200,27 @@ export const ReportView: React.FC<ReportViewProps> = ({
   return (
     <div className={styles.root}>
       <div style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalM, padding: tokens.spacingHorizontalM }}>
-        <Button appearance="subtle" icon={<ArrowLeft24Regular />} onClick={onBack}>Explorer</Button>
-        <Text weight="semibold" size={400}>Report</Text>
+        <Button appearance="subtle" icon={<ArrowLeft24Regular />} onClick={onBack}>{strings.App_Explorer}</Button>
+        <Text weight="semibold" size={400}>{strings.Report_Title}</Text>
       </div>
 
       <div className={styles.toolbar}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}>
-            <Label>Libraries to scan</Label>
+            <Label>{strings.Report_LibrariesToScan}</Label>
             {libraries && libraries.length > 1 && (
               <>
                 <Link as="button" onClick={() => setSelected(new Set(libraries.map((l) => l.serverRelativeUrl)))}>
-                  Select all
+                  {strings.Report_SelectAll}
                 </Link>
                 <Link as="button" onClick={() => setSelected(new Set())}>
-                  Select none
+                  {strings.Report_SelectNone}
                 </Link>
               </>
             )}
           </div>
           <div className={styles.libList}>
-            {libraries === null && <Spinner size="tiny" label="Loading libraries…" />}
+            {libraries === null && <Spinner size="tiny" label={strings.Common_LoadingLibraries} />}
             {libraries?.map((lib) => (
               <Checkbox
                 key={lib.serverRelativeUrl}
@@ -232,18 +234,18 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
         <div className={styles.actions}>
           {!scanning && (
-            <Button appearance="primary" onClick={runScan} disabled={selected.size === 0}>Run full scan</Button>
+            <Button appearance="primary" onClick={runScan} disabled={selected.size === 0}>{strings.Report_RunFullScan}</Button>
           )}
           {scanning && (
             <>
               <Spinner size="tiny" />
-              <Text>{cancelling ? 'Cancelling…' : `Scanned ${scanned} items…${throttleNote}`}</Text>
-              <Button appearance="secondary" onClick={cancelScan} disabled={cancelling}>Cancel</Button>
+              <Text>{cancelling ? strings.Report_Cancelling : fmt(strings.Report_Scanned, { count: scanned, note: throttleNote })}</Text>
+              <Button appearance="secondary" onClick={cancelScan} disabled={cancelling}>{strings.Common_Cancel}</Button>
             </>
           )}
           {entries && !scanning && (
             <Button appearance="primary" icon={<ArrowDownload24Regular />} onClick={() => { setExportScope(filterScope); setExportOpen(true); }}>
-              Export report…
+              {strings.Report_ExportButton}
             </Button>
           )}
         </div>
@@ -256,33 +258,33 @@ export const ReportView: React.FC<ReportViewProps> = ({
         {entries && (
           <>
             <div className={styles.filterRow}>
-              <Text>{entries.length} items scanned — {overCount} over limit, {warningCount} at warning level</Text>
+              <Text>{fmt(strings.Report_Summary, { total: entries.length, over: overCount, warning: warningCount })}</Text>
               <RadioGroup layout="horizontal" value={filterScope} onChange={(_, d) => setFilterScope(d.value as ExportScope)}>
-                <Radio value="all" label="All" />
-                <Radio value="warningAndOver" label="Warning & over" />
-                <Radio value="overOnly" label="Over limit only" />
+                <Radio value="all" label={strings.Filter_All} />
+                <Radio value="warningAndOver" label={strings.Filter_WarningAndOver} />
+                <Radio value="overOnly" label={strings.Filter_OverOnly} />
               </RadioGroup>
             </div>
             <PathTable entries={filtered} />
           </>
         )}
-        {!entries && !scanning && <Text>Choose libraries above and run a full scan to build a report.</Text>}
+        {!entries && !scanning && <Text>{strings.Report_Empty}</Text>}
       </div>
 
       <Dialog open={exportOpen} onOpenChange={(_, d) => setExportOpen(d.open)}>
         <DialogSurface>
           <DialogBody>
-            <DialogTitle>Export report</DialogTitle>
+            <DialogTitle>{strings.Export_DialogTitle}</DialogTitle>
             <DialogContent style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL }}>
               <div>
-                <Label>Format</Label>
+                <Label>{strings.Export_Format}</Label>
                 <RadioGroup value={exportFormat} onChange={(_, d) => setExportFormat(d.value as ExportFormat)}>
                   <Radio value="csv" label="CSV" />
                   <Radio value="xlsx" label="Excel (.xlsx)" />
                 </RadioGroup>
               </div>
               <div>
-                <Label>Scope</Label>
+                <Label>{strings.Export_Scope}</Label>
                 <RadioGroup value={exportScope} onChange={(_, d) => setExportScope(d.value as ExportScope)}>
                   <Radio value="all" label={scopeLabel('all')} />
                   <Radio value="warningAndOver" label={scopeLabel('warningAndOver')} />
@@ -292,10 +294,10 @@ export const ReportView: React.FC<ReportViewProps> = ({
             </DialogContent>
             <DialogActions>
               <DialogTrigger disableButtonEnhancement>
-                <Button appearance="secondary">Cancel</Button>
+                <Button appearance="secondary">{strings.Common_Cancel}</Button>
               </DialogTrigger>
               <Button appearance="primary" onClick={runExport} disabled={exporting}>
-                {exporting ? <Spinner size="tiny" /> : 'Export'}
+                {exporting ? <Spinner size="tiny" /> : strings.Common_Export}
               </Button>
             </DialogActions>
           </DialogBody>

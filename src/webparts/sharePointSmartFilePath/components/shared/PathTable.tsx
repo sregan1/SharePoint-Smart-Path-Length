@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { makeStyles, tokens, Badge, Text } from '@fluentui/react-components';
 import { Folder24Regular, Document24Regular, ChevronUp16Regular, ChevronDown16Regular } from '@fluentui/react-icons';
+import * as strings from 'SharePointSmartFilePathWebPartStrings';
 import { PathReportEntry } from '../../models/models';
 import { pathStatusBadgeColor, pathStatusLabel } from './pathStatus';
 
@@ -56,16 +57,16 @@ export const PathTable: React.FC<PathTableProps> = ({ entries }) => {
         <tr>
           <th className={styles.th} style={{ width: '32px' }} />
           <th className={styles.th} onClick={() => toggleSort('library')}>
-            <span className={styles.headerInner}>Library {headerArrow('library')}</span>
+            <span className={styles.headerInner}>{strings.Table_Library} {headerArrow('library')}</span>
           </th>
           <th className={styles.th} onClick={() => toggleSort('name')}>
-            <span className={styles.headerInner}>Estimated OneDrive path {headerArrow('name')}</span>
+            <span className={styles.headerInner}>{strings.Table_EstimatedPath} {headerArrow('name')}</span>
           </th>
           <th className={styles.th} onClick={() => toggleSort('length')}>
-            <span className={styles.headerInner}>Length {headerArrow('length')}</span>
+            <span className={styles.headerInner}>{strings.Table_Length} {headerArrow('length')}</span>
           </th>
           <th className={styles.th} onClick={() => toggleSort('status')}>
-            <span className={styles.headerInner}>Status {headerArrow('status')}</span>
+            <span className={styles.headerInner}>{strings.Table_Status} {headerArrow('status')}</span>
           </th>
         </tr>
       </thead>
@@ -82,7 +83,7 @@ export const PathTable: React.FC<PathTableProps> = ({ entries }) => {
           </tr>
         ))}
         {sorted.length === 0 && (
-          <tr><td className={styles.td} colSpan={5}><Text>No items match the current filter.</Text></td></tr>
+          <tr><td className={styles.td} colSpan={5}><Text>{strings.Table_NoMatch}</Text></td></tr>
         )}
       </tbody>
     </table>

@@ -12,6 +12,7 @@ import {
 } from '@fluentui/react-components';
 import { Settings24Regular, FolderProhibited24Regular, DocumentTable24Regular } from '@fluentui/react-icons';
 import { WebPartContext } from '@microsoft/sp-webpart-base';
+import * as strings from 'SharePointSmartFilePathWebPartStrings';
 
 import { SharePointService } from '../services/SharePointService';
 import { ExportService } from '../services/ExportService';
@@ -80,6 +81,7 @@ export interface AppProps {
   defaultSamplePath: string;
   brandColors: IBrandColors;
   isEditMode: boolean;
+  isRtl: boolean;
 }
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
@@ -131,7 +133,7 @@ try {
 }
 
 export const App: React.FC<AppProps> = ({
-  context, sp, exportService, warningLength, errorLength, defaultSamplePath, brandColors, isEditMode,
+  context, sp, exportService, warningLength, errorLength, defaultSamplePath, brandColors, isEditMode, isRtl,
 }) => {
   const theme = React.useMemo(() => buildTheme(brandColors), [brandColors]);
 
@@ -189,7 +191,7 @@ export const App: React.FC<AppProps> = ({
   return (
     <ErrorBoundary>
     <RendererProvider renderer={renderer} targetDocument={document}>
-    <FluentProvider theme={theme} style={{ minHeight: '400px', position: 'relative' }}>
+    <FluentProvider theme={theme} dir={isRtl ? 'rtl' : 'ltr'} style={{ minHeight: '400px', position: 'relative' }}>
 
       {view !== 'settings' && (
         <div
@@ -222,14 +224,14 @@ export const App: React.FC<AppProps> = ({
                   style={{ minWidth: '200px', maxWidth: '400px', flexGrow: 1 }}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleConnect(); }}
                 />
-                <Button appearance="secondary" onClick={handleConnect} disabled={!editUrl.trim()}>Connect</Button>
-                <Button appearance="transparent" style={{ color: 'white', flexShrink: 0 }} onClick={handleCancelEdit}>Cancel</Button>
+                <Button appearance="secondary" onClick={handleConnect} disabled={!editUrl.trim()}>{strings.Common_Connect}</Button>
+                <Button appearance="transparent" style={{ color: 'white', flexShrink: 0 }} onClick={handleCancelEdit}>{strings.Common_Cancel}</Button>
               </>
             ) : (
               <>
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.75)', flexShrink: 0, display: 'inline-block' }} />
                 <Text style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'white' }}>{siteUrl}</Text>
-                <Button appearance="transparent" size="small" style={{ color: 'white', flexShrink: 0 }} onClick={handleStartEdit}>Change URL</Button>
+                <Button appearance="transparent" size="small" style={{ color: 'white', flexShrink: 0 }} onClick={handleStartEdit}>{strings.App_ChangeUrl}</Button>
               </>
             )}
           </div>
@@ -241,13 +243,13 @@ export const App: React.FC<AppProps> = ({
               style={{ color: 'white' }}
               onClick={() => setView(view === 'report' ? 'explorer' : 'report')}
             >
-              {view === 'report' ? 'Explorer' : 'Report'}
+              {view === 'report' ? strings.App_Explorer : strings.App_Report}
             </Button>
             <Button
               appearance="transparent"
               icon={<Settings24Regular style={{ color: 'white' }} />}
-              aria-label="Settings"
-              title="Settings"
+              aria-label={strings.App_Settings}
+              title={strings.App_Settings}
               onClick={handleOpenSettings}
             />
           </div>

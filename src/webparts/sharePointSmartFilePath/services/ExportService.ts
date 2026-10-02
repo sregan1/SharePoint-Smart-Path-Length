@@ -2,6 +2,7 @@
 // user actually exports to .xlsx — load it on demand as a separate webpack
 // chunk. Only types are imported statically (erased at compile time).
 import type * as ExcelJS from 'exceljs';
+import * as strings from 'SharePointSmartFilePathWebPartStrings';
 import { PathReportEntry, PathStatus } from '../models/models';
 
 let excelModulePromise: Promise<typeof ExcelJS> | undefined;
@@ -41,9 +42,9 @@ function statusFontArgb(status: PathStatus): string {
 }
 function statusLabel(status: PathStatus): string {
   switch (status) {
-    case 'error': return 'Over limit';
-    case 'warning': return 'Warning';
-    default: return 'OK';
+    case 'error': return strings.Status_OverLimit;
+    case 'warning': return strings.Status_Warning;
+    default: return strings.Status_OK;
   }
 }
 
@@ -78,11 +79,11 @@ export class ExportService {
 
   exportCsv(entries: PathReportEntry[]): void {
     const rows: string[][] = [
-      ['Type', 'Library', 'Estimated OneDrive Path', 'Length', 'Status'],
+      [strings.Export_Type, strings.Export_ColLibrary, strings.Export_ColPath, strings.Export_ColLength, strings.Export_ColStatus],
     ];
     for (const e of entries) {
       rows.push([
-        e.isFolder ? 'Folder' : 'File',
+        e.isFolder ? strings.Export_Folder : strings.Export_File,
         e.libraryTitle,
         e.oneDrivePath,
         String(e.oneDrivePathLength),
@@ -100,17 +101,17 @@ export class ExportService {
     const Excel = await loadExcelJS();
     const wb = new Excel.Workbook();
 
-    const summary = wb.addWorksheet('Summary');
+    const summary = wb.addWorksheet(strings.Export_SheetSummary);
     const title = summary.getCell('A1');
-    title.value = 'SharePoint Smart Path Length Report';
+    title.value = strings.Export_ReportTitle;
     title.font = { bold: true, size: 16, color: { argb: COLOR.titleFont } };
 
     const data: [string, string | number][] = [
-      ['Generated', new Date().toLocaleString()],
-      ['Items scanned', entries.length],
-      ['Over limit', entries.filter((e) => e.status === 'error').length],
-      ['Warning level', entries.filter((e) => e.status === 'warning').length],
-      ['OK', entries.filter((e) => e.status === 'normal').length],
+      [strings.Export_Generated, new Date().toLocaleString()],
+      [strings.Export_ItemsScanned, entries.length],
+      [strings.Export_OverLimit, entries.filter((e) => e.status === 'error').length],
+      [strings.Export_WarningLevel, entries.filter((e) => e.status === 'warning').length],
+      [strings.Export_OK, entries.filter((e) => e.status === 'normal').length],
     ];
     data.forEach(([label, value], i) => {
       const row = i + 3;
@@ -121,8 +122,8 @@ export class ExportService {
     summary.getColumn(1).width = 20;
     summary.getColumn(2).width = 30;
 
-    const ws = wb.addWorksheet('Paths');
-    const headers = ['Type', 'Library', 'Estimated OneDrive Path', 'Length', 'Status'];
+    const ws = wb.addWorksheet(strings.Export_SheetPaths);
+    const headers = [strings.Export_Type, strings.Export_ColLibrary, strings.Export_ColPath, strings.Export_ColLength, strings.Export_ColStatus];
     const headerRow = ws.getRow(1);
     headers.forEach((h, i) => {
       const cell = headerRow.getCell(i + 1);
@@ -136,7 +137,7 @@ export class ExportService {
 
     entries.forEach((e, idx) => {
       const row = ws.getRow(idx + 2);
-      row.getCell(1).value = e.isFolder ? 'Folder' : 'File';
+      row.getCell(1).value = e.isFolder ? strings.Export_Folder : strings.Export_File;
       row.getCell(2).value = e.libraryTitle;
       row.getCell(3).value = e.oneDrivePath;
       row.getCell(4).value = e.oneDrivePathLength;

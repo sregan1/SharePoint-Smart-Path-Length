@@ -4,6 +4,9 @@ import {
 } from '@fluentui/react-components';
 import { ArrowLeft24Regular, Info16Regular } from '@fluentui/react-icons';
 
+import * as strings from 'SharePointSmartFilePathWebPartStrings';
+import { fmt } from './shared/format';
+
 const useStyles = makeStyles({
   root: { padding: tokens.spacingHorizontalXXL, display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL, maxWidth: '600px' },
   field: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXXS },
@@ -31,14 +34,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   return (
     <div className={styles.root}>
       <div style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalM }}>
-        <Button appearance="subtle" icon={<ArrowLeft24Regular />} onClick={onBack}>Back</Button>
-        <Title2>Settings</Title2>
+        <Button appearance="subtle" icon={<ArrowLeft24Regular />} onClick={onBack}>{strings.Common_Back}</Button>
+        <Title2>{strings.Settings_Title}</Title2>
       </div>
 
       <div className={styles.field}>
         <div className={styles.labelRow}>
-          <Label htmlFor="settingsSamplePath">Sample OneDrive path prefix</Label>
-          <Tooltip content="Your OneDrive sync root, e.g. C:\Users\UsernamePath\OneDrive - Company\. Saved to this browser only — it isn't shared with other users." relationship="description">
+          <Label htmlFor="settingsSamplePath">{strings.Common_SamplePathLabel}</Label>
+          <Tooltip content={strings.Settings_SamplePathTooltip} relationship="description">
             <Info16Regular />
           </Tooltip>
         </div>
@@ -47,8 +50,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       <div className={styles.field}>
         <div className={styles.labelRow}>
-          <Label>Concurrent API requests during a full scan (upper limit)</Label>
-          <Tooltip content="An upper limit, not a fixed rate. Scans start well below this and ramp up while SharePoint is keeping up. If SharePoint throttles the scan, it pauses (honoring Retry-After), halves its concurrency, and afterwards creeps back up only to just below the level that was throttled — never back to it. Lower this if scans still cause throttling." relationship="description">
+          <Label>{strings.Settings_ConcurrencyLabel}</Label>
+          <Tooltip content={strings.Settings_ConcurrencyTooltip} relationship="description">
             <Info16Regular />
           </Tooltip>
         </div>
@@ -61,14 +64,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       </div>
 
       <Checkbox
-        label="Include hidden and system libraries"
+        label={strings.Settings_IncludeHidden}
         checked={includeHidden}
         onChange={(_, d) => onIncludeHiddenChange(!!d.checked)}
       />
 
       <Text className={styles.thresholds}>
-        The warning ({warningLength} characters) and over-limit ({errorLength} characters) thresholds are
-        set by whoever edits this page — from the web part's property pane ("Edit web part" → SharePoint Smart Path Length settings), not here.
+        {fmt(strings.Settings_ThresholdsNote, { warning: warningLength, error: errorLength })}
       </Text>
     </div>
   );

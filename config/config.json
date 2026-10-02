@@ -12,5 +12,7 @@
     }
   },
   "externals": {},
-  "localizedResources": {}
+  "localizedResources": {
+    "SharePointSmartFilePathWebPartStrings": "lib/webparts/sharePointSmartFilePath/loc/{locale}.js"
+  }
 }

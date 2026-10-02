@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { tokens } from '@fluentui/react-components';
 import { CheckmarkCircle16Regular, Warning16Regular, ErrorCircle16Filled } from '@fluentui/react-icons';
+import * as strings from 'SharePointSmartFilePathWebPartStrings';
 import { PathStatus } from '../../models/models';
 
 export function pathStatusColor(status: PathStatus): string {
@@ -21,9 +22,9 @@ export function pathStatusBadgeColor(status: PathStatus): 'success' | 'warning' 
 
 export function pathStatusLabel(status: PathStatus): string {
   switch (status) {
-    case 'error': return 'Over limit';
-    case 'warning': return 'Warning';
-    default: return 'OK';
+    case 'error': return strings.Status_OverLimit;
+    case 'warning': return strings.Status_Warning;
+    default: return strings.Status_OK;
   }
 }
 
@@ -32,9 +33,9 @@ export function pathStatusLabel(status: PathStatus): string {
 // stays consistent between the two.
 export function pathStatusDescription(status: PathStatus): string {
   switch (status) {
-    case 'error': return "This path is at or over the configured limit — it likely won't sync to OneDrive correctly.";
-    case 'warning': return 'This path is approaching the configured limit — worth shortening soon.';
-    default: return "This path is comfortably within the configured limit — nothing to do here.";
+    case 'error': return strings.StatusDescription_Error;
+    case 'warning': return strings.StatusDescription_Warning;
+    default: return strings.StatusDescription_Normal;
   }
 }
 
